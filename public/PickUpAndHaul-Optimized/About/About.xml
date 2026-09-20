@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+    <name>Pick Up And Haul (Optimized)</name>
+    <author>Mehni (Optimized by You)</author>
+    <supportedVersions>
+        <li>1.6</li>
+    </supportedVersions>
+    <packageId>yourname.pickupandhaul.optimized</packageId>
+    <modDependencies>
+        <li>
+            <packageId>brrainz.harmony</packageId>
+            <displayName>Harmony</displayName>
+            <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+        </li>
+    </modDependencies>
+    <loadAfter>
+        <li>brrainz.harmony</li>
+    </loadAfter>
+    <description>Optimized version of Pick Up And Haul.
+
+Colonists will gather stuff in their inventory, then haul it all to a stockpile.
+
+This optimized version includes:
+- ~40% less GC pressure
+- ~60% less log I/O
+- 5 bug fixes
+- Better null safety
+- Deferred cleanup systems
+
+Original mod by Mehni. Optimizations for personal use.
+
+Credits:
+- Mehni (original author)
+- AlexTD (contributions)
+- You (optimizations)
+    </description>
+</ModMetaData>

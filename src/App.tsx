@@ -9,12 +9,13 @@ import Compatibility from './sections/Compatibility';
 import Improvements from './sections/Improvements';
 import Optimized from './sections/Optimized';
 import BuildGuide from './sections/BuildGuide';
+import Download from './sections/Download';
 import QuickReference from './sections/QuickReference';
 
-export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'optimized' | 'build' | 'reference';
+export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'optimized' | 'build' | 'download' | 'reference';
 
 function App() {
-  const [activeSection, setActiveSection] = useState<Section>('optimized');
+  const [activeSection, setActiveSection] = useState<Section>('download');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const renderSection = () => {
@@ -28,6 +29,7 @@ function App() {
       case 'improvements': return <Improvements />;
       case 'optimized': return <Optimized />;
       case 'build': return <BuildGuide />;
+      case 'download': return <Download />;
       case 'reference': return <QuickReference />;
       default: return <Overview />;
     }

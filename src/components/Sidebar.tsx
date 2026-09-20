@@ -17,6 +17,7 @@ const navItems: { id: Section; label: string; icon: string }[] = [
   { id: 'improvements', label: 'Improvement Ideas', icon: '💡' },
   { id: 'optimized', label: 'Optimized Version', icon: '⚡' },
   { id: 'build', label: 'Build Guide', icon: '🔨' },
+  { id: 'download', label: 'Download Package', icon: '📦' },
   { id: 'reference', label: 'Quick Reference', icon: '📖' },
 ];
 
