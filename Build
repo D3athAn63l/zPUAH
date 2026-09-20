@@ -1,0 +1,27 @@
+name: Build mod
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Must build first: PickUpAndHaul.csproj references its output DLL
+      - name: Build IHoldMultipleThings
+        run: dotnet build "public/PickUpAndHaul-Optimized/Source/IHoldMultipleThings/IHoldMultipleThings.csproj" -c Release
+
+      - name: Build PickUpAndHaul
+        run: dotnet build "public/PickUpAndHaul-Optimized/Source/PickUpAndHaul/PickUpAndHaul.csproj" -c Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PickUpAndHaul-Optimized-Assemblies
+          path: public/PickUpAndHaul-Optimized/1.6/Assemblies/*.dll
