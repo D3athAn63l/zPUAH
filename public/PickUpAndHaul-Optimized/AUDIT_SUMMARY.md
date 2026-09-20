@@ -4,7 +4,16 @@
 
 The optimized fork has been corrected to restore full behavioral compatibility with Mehni's RimWorld 1.6 Pick Up And Haul implementation. All critical bugs have been fixed, unsafe optimizations removed, and safe optimizations retained.
 
-**Status:** ✅ Ready for testing and release
+**Status:** Code repair complete; a Release build and runtime regression testing are still required before release.
+
+**Verification levels — these are not interchangeable:**
+
+| Level | State |
+|-------|-------|
+| **Statically reviewed** — every source file diffed against Mehni's 1.6 tree, syntax parsed, XML / translation keys / DefOf names cross-checked | ✅ Done |
+| **Compiled** — clean Release build against the real RimWorld 1.6 reference assemblies | ❌ Not verified |
+| **Runtime tested** — the Phase 12 checklist exercised in game | ❌ Not run |
+| **Benchmarked** — measured allocation or frame-time figures | ❌ Not run |
 
 ---
 
@@ -117,7 +126,7 @@ if ((forced && job.TryMakePreToilReservations(pawn, false))
 |-------|--------|---------|
 | Single-slot cache | **FIXED** | Replaced with `Dictionary<Map, HaulablesCacheEntry>` |
 | Cross-map invalidation | **FIXED** | Each map has its own cache entry |
-| Memory leaks | **FIXED** | Added `CleanCache()` method to remove stale map entries |
+| Memory leaks | **FIXED** | `CleanCache()` removes entries for maps that are no longer loaded, and is now actually invoked — called from `GetHaulablesCached()` behind a 2000-tick interval guard. An earlier revision defined the method but never called it, so the static dictionary could retain removed Maps indefinitely. |
 
 **Implementation:**
 ```csharp
@@ -198,7 +207,9 @@ All differences from upstream have been classified:
 | LINQ replacement | Performance optimization | Kept (safe) |
 | Null safety | Robustness improvement | Kept (safe) |
 
-**No accidental differences remain.**
+**Known differences from upstream, all deliberate:** the Harmony ID (`…​.optimized` rather than `…​.main`), the settings category label, the per-map haulables cache, the `try`/`finally` around `skipCells`/`skipThings`, `.Count == 0` in place of `.Any()`, added null guards, a `Spawned` guard on the two unload postfixes, and some removed comments and `[Conditional("DEBUG")]` log calls.
+
+This was verified by diffing every source file in this fork against Mehni's 1.6 tree. Nine of the fourteen files are byte-identical to upstream apart from comments. That is a file-by-file review, not a proof of runtime equivalence — see the verification table at the top.
 
 ---
 
@@ -395,7 +406,7 @@ All differences from upstream have been classified:
 ⚠️ 7. Regression-test results (requires manual testing)  
 ⚠️ 8. Benchmark results (requires measurement)  
 ✅ 9. Updated README  
-✅ 10. Clean compiled RimWorld 1.6 mod package structure  
+⚠️ 10. RimWorld 1.6 mod package structure complete and validated — but not compiled (no build has been run)  
 
 ---
 
@@ -409,11 +420,11 @@ All optimizations that could change hauling correctness have been removed. The r
 - LINQ replacement (allocation reduction, same behavior)
 - Null safety (robustness improvement)
 
-**Next Steps:**
-1. Build the mod
-2. Run regression tests (Phase 12 checklist)
-3. Perform benchmarks if performance claims are desired
-4. Release if all tests pass
+**Next Steps (in order — none of these have been done yet):**
+1. Build the solution in **Release** and confirm it compiles cleanly. Until this passes, everything below is blocked.
+2. Run the Phase 12 regression checklist in game, including the two-map and map-removal cases that exercise the haulables cache.
+3. Benchmark only if you intend to make performance claims. No claim in this repository is currently backed by measurement, and none should be added without one.
+4. Release only once 1 and 2 have actually passed.
 
 ---
 

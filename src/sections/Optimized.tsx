@@ -414,6 +414,15 @@ const changeTypeColors = {
   feature: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30', label: '✨ Feature' },
 };
 
+// STALE_PAGE_NOTICE
+// The before/after snippets in `optimizedFiles` below document an EARLIER optimization
+// pass that has since been reverted. They still show APIs that no longer exist
+// (UnregisterHauledItem, MarkDirty, ForceClean), a static _sortBuffer, and
+// RemoveWhere(x => x == null || x.Destroyed) — that last one broke merged-stack
+// recovery and must not be reintroduced. Do not copy code from this page.
+// The shipped source is under public/PickUpAndHaul-Optimized/Source/, and the
+// SourceCode section renders the current version.
+
 export default function Optimized() {
   const [activeFile, setActiveFile] = useState(0);
   const [viewMode, setViewMode] = useState<'diff' | 'full'>('diff');
@@ -422,6 +431,16 @@ export default function Optimized() {
 
   return (
     <div className="space-y-8">
+      <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4">
+        <p className="font-semibold text-amber-300">⚠️ This page is out of date</p>
+        <p className="mt-2 text-sm text-gray-300">
+          The comparisons below document an earlier optimization pass that was{' '}
+          <strong>reverted</strong>. They reference methods that no longer exist and show a
+          cleanup that discarded destroyed <code>Thing</code> references &mdash; which broke
+          recovery of stacks RimWorld merged in a pawn&apos;s inventory. Do not copy code from
+          this page. See the <strong>Source Code</strong> section for what actually ships.
+        </p>
+      </div>
       <div>
         <h1 className="text-3xl font-bold text-orange-400 mb-2">⚡ Corrected Optimized Version</h1>
         <p className="text-gray-400">Behaviorally compatible with upstream, with safe optimizations only</p>

@@ -87,7 +87,8 @@ static class HarmonyPatches
         var takenToInventory = pawn.GetComp<CompHauledToInventory>();
         if (takenToInventory == null) return true;
 
-        return !takenToInventory.Contains(thing);
+        var carriedThing = takenToInventory.GetHashSet();
+        return !carriedThing.Contains(thing);
     }
 
     private static void Pawn_InventoryTracker_PostFix(Pawn_InventoryTracker __instance, Thing item)
@@ -98,8 +99,14 @@ static class HarmonyPatches
         var takenToInventory = pawn.GetComp<CompHauledToInventory>();
         if (takenToInventory == null) return;
 
-        // Use UnregisterHauledItem which marks dirty for deferred cleanup
-        takenToInventory.UnregisterHauledItem(item);
+        // Remove directly from the tracked set, matching upstream behaviour.
+        // GetHashSet() strips only null entries; destroyed Things are deliberately
+        // kept so merged-stack recovery can still resolve them by def.
+        var carriedThing = takenToInventory.GetHashSet();
+        if (carriedThing?.Count > 0)
+        {
+            carriedThing.Remove(item);
+        }
     }
 
     private static void JobDriver_HaulToCell_PostFix(JobDriver_HaulToCell __instance)

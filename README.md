@@ -1,131 +1,98 @@
-# Pick Up And Haul (Optimized)
+# Pick Up And Haul (Optimized) — zPUAH
 
-An optimized version of the Pick Up And Haul mod for RimWorld.
+An optimization fork of [Pick Up And Haul](https://github.com/Mehni/PickUpAndHaul) by Mehni, targeting RimWorld 1.6.
 
-## Optimizations
+This repository contains both the mod itself (in `public/PickUpAndHaul-Optimized/`) and a small documentation site built with Vite.
 
-- **~40% less GC pressure** - Deferred HashSet cleanup, cached lists, eliminated LINQ allocations
-- **~60% less log I/O** - Removed excessive logging calls
-- **5 bug fixes** - Static field leaks, enumeration issues, null safety
-- **Better performance** - Per-tick caching, optimized sorting
+## ⚠️ Incompatible with the original mod
 
-## Build Instructions
+Do **not** enable both "Pick Up And Haul" (Mehni.PickUpAndHaul) and this fork at the same time. They patch the same methods and will conflict.
+
+## What this fork changes
+
+The goal of this fork is behavioural parity with Mehni's RimWorld 1.6 implementation, with a small number of contained changes:
+
+- **Per-map haulables cache** — `Dictionary<Map, …>` keyed by map, valid for a single tick, so two loaded maps no longer invalidate one shared cache slot. Stale entries for unloaded maps are swept periodically.
+- **`try`/`finally` cleanup** — the temporary `skipCells` / `skipThings` state is cleared even if an exception escapes, instead of being left populated.
+- **Fewer LINQ allocations in hot paths** — `.Count == 0` in place of `.Any()` in `GetClosestAndRemove` and `FindClosestThing`.
+- **Reusable temporary buffers** — where the upstream mod already used them, they are kept; no new static mutable state was introduced for performance alone.
+- **Null guards** in the Harmony patches.
+
+Hauling logic, job defs, work giver priority, save keys and the merged-stack recovery path are deliberately unchanged from upstream.
+
+### On performance claims
+
+This fork makes **no measured performance claims**. Earlier versions of this README quoted figures such as "~40% less GC pressure" and "~60% less log I/O"; those were never benchmarked and have been removed. Note in particular that the upstream debug logger is marked `[Conditional("DEBUG")]`, so those calls emit no IL at all in a Release build — removing them cannot affect release performance.
+
+If you want performance numbers, measure them.
+
+## Building
 
 ### Prerequisites
 
-1. **Visual Studio 2022** (Community edition is free)
-   - Install with ".NET desktop development" workload
-   - Or use Rider if you prefer
+- **Visual Studio 2022** with the ".NET desktop development" workload (or Rider)
+- **.NET Framework 4.8** targeting pack
+- **NuGet** (bundled with Visual Studio)
 
-2. **.NET Framework 4.8 SDK**
-   - RimWorld uses .NET Framework 4.8
+You do **not** need a local copy of `Assembly-CSharp.dll`, and you should not point the projects at one. The solution uses `Krafs.Rimworld.Ref` for the game reference assemblies and `Krafs.Publicizer` to reach non-public members. Do not replace this with raw `HintPath` references to your RimWorld install — that is the setup this fork deliberately moved away from.
 
-3. **RimWorld** (Steam version recommended)
-   - You need access to the game's Assembly-CSharp.dll
+### Steps
 
-4. **Harmony mod** installed in RimWorld
-   - Download from Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2009463077
+1. Open `public/PickUpAndHaul-Optimized/Source/PickUpAndHaul.sln`.
+2. Let NuGet restore (`Krafs.Rimworld.Ref` 1.6.4518, `Lib.Harmony` 2.3.6, `Krafs.Publicizer` 2.3.0).
+3. Build in **Release**.
+4. Both assemblies are written straight to `public/PickUpAndHaul-Optimized/1.6/Assemblies/` — there is no `bin/Debug/net48/` step to copy from.
 
-### Step 1: Update DLL Paths
+`PickUpAndHaul.csproj` references `IHoldMultipleThings.dll` from that same output folder, so on a clean tree build `IHoldMultipleThings` first if your IDE does not order the two projects for you.
 
-Open these files and update the paths to match your installation:
+### Deploying
 
-- `Source/PickUpAndHaul/PickUpAndHaul.csproj`
-- `Source/IHoldMultipleThings/IHoldMultipleThings.csproj`
+Copy the whole `PickUpAndHaul-Optimized` folder into your RimWorld `Mods` directory. It must contain:
 
-Look for `<HintPath>` tags and update them to point to:
-- `Assembly-CSharp.dll` (in your RimWorld installation's `RimWorldWin64_Data/Managed/` folder)
-- `0Harmony.dll` (in your Harmony mod's `v1.6/Assemblies/` folder)
-
-### Step 2: Build the Solution
-
-1. Open `Source/PickUpAndHaul.sln` in Visual Studio
-2. Press `Ctrl+Shift+B` or go to Build → Build Solution
-3. Check the Output window for errors
-
-### Step 3: Deploy to RimWorld
-
-1. Navigate to your RimWorld Mods folder:
-   ```
-   C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\
-   ```
-
-2. Create a folder named `PickUpAndHaul-Optimized`
-
-3. Copy these folders/files to your mod folder:
-   - `About/` folder
-   - `Defs/` folder
-   - `Languages/` folder
-
-4. Create the assembly folder and copy DLLs:
-   ```
-   PickUpAndHaul-Optimized/
-   └── 1.6/
-       └── Assemblies/
-           ├── PickUpAndHaul.dll (from Source/PickUpAndHaul/bin/Debug/net48/)
-           └── IHoldMultipleThings.dll (from Source/IHoldMultipleThings/bin/Debug/net48/)
-   ```
-
-### Step 4: Enable in RimWorld
-
-1. Launch RimWorld
-2. Go to Mods
-3. Enable "Pick Up And Haul (Optimized)"
-4. Make sure Harmony is also enabled and loaded before PUAH
-
-## Testing
-
-Enable Development Mode in RimWorld (Options → General) to see debug info.
-
-Check the log for this message when the mod loads:
 ```
-[PickUpAndHaul] Optimized v2.0 loaded. CE:False AT:False
+PickUpAndHaul-Optimized/
+├── About/          About.xml
+├── Defs/           JobDefs/WorkGiver.xml
+├── Languages/      English/Keyed/PUAH_Settings.xml
+├── Patches/        PickUpAndHaul.xml   <- required; injects the pawn comp
+├── 1.6/Assemblies/ PickUpAndHaul.dll, IHoldMultipleThings.dll
+└── Source/         (source only, not needed at runtime)
 ```
 
-Test scenarios:
-- ☐ Single item haul
-- ☐ Multi-item haul (3+ items)
-- ☐ Haul to container (shelf)
-- ☐ Haul to hopper
-- ☐ Pawn idle → unload
-- ☐ Full inventory → auto unload
-- ☐ Gear tab color coding
-- ☐ Animal hauling
-- ☐ Corpse hauling (if enabled)
-- ☐ Job interruption
-- ☐ Save/load cycle
-- ☐ Combat Extended (if installed)
+`Patches/PickUpAndHaul.xml` is **not optional**. It adds `CompHauledToInventory` to every pawn ThingDef; without it no pawn can track hauled inventory and the mod does nothing.
 
-## Troubleshooting
+Then enable "Pick Up And Haul (Optimized)" in the mods list, with Harmony loaded before it.
 
-**Build Error: "Could not find Assembly-CSharp"**
-- Update the HintPath in your .csproj files to match your actual RimWorld installation
+## Status
 
-**Build Error: "Could not find 0Harmony"**
-- Make sure Harmony is installed in RimWorld
-- Update the HintPath to point to 0Harmony.dll in the Harmony mod's Assemblies folder
+| Verification | State |
+| --- | --- |
+| Static review against upstream 1.6 | Done |
+| Compiles in Release | **Not yet verified** — no build has been run against the real RimWorld 1.6 reference assemblies |
+| Runtime regression tested in game | **Not done** |
+| Benchmarked | **Not done** |
 
-**Runtime Error: "TypeLoadException"**
-- You're building against a different RimWorld version than you're running
-- Make sure you're using the Assembly-CSharp.dll from the same game version
+See `public/PickUpAndHaul-Optimized/AUDIT_SUMMARY.md` for the detailed audit and the regression-test checklist.
 
-**Mod doesn't load in RimWorld**
-- Check that Harmony is enabled and loaded before PUAH
-- Check that the DLLs are in the correct version folder (1.6/Assemblies/)
-- Check that About.xml has the correct packageId and supportedVersions
+## Documentation site
 
-**Pawns don't multi-haul**
-- Check the log for Harmony patch errors
-- Try disabling other mods that might conflict (Common Sense, While You're Up, etc.)
+```
+npm install
+npm run dev     # local preview
+npm run build   # production build
+```
 
 ## Credits
 
-- **Mehni** - Original Pick Up And Haul mod
-- **AlexTD** - Major contributions to original mod
-- **You** - Optimizations
+- **Mehni** — original Pick Up And Haul
+- **AlexTD** — dynamic search range, queueing, optimization work on the original
+- **erdelf, Zorba, Why_is_that, Dingo** — code and advice on the original
+- **Chicken Plucker** — preview image
+- **Brrainz** — the Harmony library
+- **D3athAn63l** — this fork
 
 Original mod: https://github.com/Mehni/PickUpAndHaul
 
 ## License
 
-MIT License (same as original)
+MIT — see [LICENSE](LICENSE). Copyright (c) 2018 Mehni; fork changes copyright (c) 2025 D3athAn63l.
