@@ -1,131 +1,143 @@
-# Pick Up And Haul (Optimized)
+# Pick Up And Haul (Optimized) - zPUAH
 
-An optimized version of the Pick Up And Haul mod for RimWorld.
+An optimized fork of [Pick Up And Haul](https://github.com/Mehni/PickUpAndHaul) for RimWorld 1.6.
 
-## Optimizations
+## ⚠️ Important
 
-- **~40% less GC pressure** - Deferred HashSet cleanup, cached lists, eliminated LINQ allocations
-- **~60% less log I/O** - Removed excessive logging calls
-- **5 bug fixes** - Static field leaks, enumeration issues, null safety
-- **Better performance** - Per-tick caching, optimized sorting
+**This mod is INCOMPATIBLE with the original Pick Up And Haul.** Do not enable both at the same time.
+
+## What This Is
+
+This is a personal optimization fork that:
+- Restores full behavioral compatibility with Mehni's RimWorld 1.6 implementation
+- Fixes build system to use Krafs.Publicizer (matching upstream)
+- Adds per-map caching to prevent cross-map invalidation
+- Uses try/finally for temporary state cleanup
+- Adds null safety guards in Harmony patches
+- Replaces LINQ `.Any()` with `.Count == 0` in hot paths
+
+This fork does NOT:
+- Change gameplay behavior
+- Add new features
+- Remove logging (upstream uses `[Conditional("DEBUG")]` so debug logs don't exist in Release builds)
 
 ## Build Instructions
 
 ### Prerequisites
 
-1. **Visual Studio 2022** (Community edition is free)
-   - Install with ".NET desktop development" workload
-   - Or use Rider if you prefer
-
+1. **Visual Studio 2022** (Community edition is free) with ".NET desktop development" workload
 2. **.NET Framework 4.8 SDK**
-   - RimWorld uses .NET Framework 4.8
+3. **NuGet** (included with Visual Studio)
 
-3. **RimWorld** (Steam version recommended)
-   - You need access to the game's Assembly-CSharp.dll
+### Steps
 
-4. **Harmony mod** installed in RimWorld
-   - Download from Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2009463077
+1. Clone or download this repository
+2. Open `Source/PickUpAndHaul.sln` in Visual Studio
+3. Restore NuGet packages (should happen automatically)
+4. Build the solution (Ctrl+Shift+B)
+5. The compiled DLLs will be in `1.6/Assemblies/`
 
-### Step 1: Update DLL Paths
+### NuGet Packages Used
 
-Open these files and update the paths to match your installation:
+- `Krafs.Rimworld.Ref` v1.6.4518 - RimWorld game references
+- `Lib.Harmony` v2.3.6 - Runtime patching
+- `Krafs.Publicizer` v2.3.0 - Makes private game members accessible
 
-- `Source/PickUpAndHaul/PickUpAndHaul.csproj`
-- `Source/IHoldMultipleThings/IHoldMultipleThings.csproj`
+### Output Structure
 
-Look for `<HintPath>` tags and update them to point to:
-- `Assembly-CSharp.dll` (in your RimWorld installation's `RimWorldWin64_Data/Managed/` folder)
-- `0Harmony.dll` (in your Harmony mod's `v1.6/Assemblies/` folder)
+```
+PickUpAndHaul-Optimized/
+├── About/
+│   └── About.xml
+├── Defs/
+│   └── JobDefs/
+│       └── WorkGiver.xml
+├── Languages/
+│   └── English/
+│       └── Keyed/
+│           └── PUAH_Settings.xml
+├── Patches/
+│   └── PickUpAndHaul.xml
+├── 1.6/
+│   └── Assemblies/
+│       ├── PickUpAndHaul.dll
+│       └── IHoldMultipleThings.dll
+└── Source/
+    ├── PickUpAndHaul/
+    │   └── *.cs
+    ├── IHoldMultipleThings/
+    │   └── *.cs
+    └── PickUpAndHaul.sln
+```
 
-### Step 2: Build the Solution
+## Deploying to RimWorld
 
-1. Open `Source/PickUpAndHaul.sln` in Visual Studio
-2. Press `Ctrl+Shift+B` or go to Build → Build Solution
-3. Check the Output window for errors
+1. Copy the entire `PickUpAndHaul-Optimized` folder to your RimWorld Mods directory
+2. Launch RimWorld
+3. Enable "Pick Up And Haul (Optimized)" in the mods menu
+4. Ensure Harmony is also enabled and loaded before this mod
 
-### Step 3: Deploy to RimWorld
+## Changes from Upstream
 
-1. Navigate to your RimWorld Mods folder:
-   ```
-   C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\
-   ```
+| Area | Upstream Behavior | Optimized Behavior | Reason |
+|------|------------------|-------------------|--------|
+| Pawn comp injection | XML patch | XML patch (restored) | Required for functionality |
+| JobDef names | `HaulToInventory` | `HaulToInventory` (restored) | DefOf/save/mod compatibility |
+| WorkGiver priority | 18 | 18 (restored) | Gameplay compatibility |
+| suspendable | false | false (restored) | Gameplay compatibility |
+| Publicizer | Krafs.Publicizer | Krafs.Publicizer (restored) | Required for non-public members |
+| Destroyed Thing cleanup | Only removes null | Only removes null (restored) | Preserve stack merge tracking |
+| PawnUnloadChecker | Returns after queue | Returns after queue (restored) | Prevent false cleanup |
+| Cache | None | Per-map Dictionary | Multi-map correctness |
+| skipCells/skipThings | Manual cleanup | try/finally cleanup | Exception safety |
+| LINQ in hot paths | `.Any()` | `.Count == 0` | Reduced allocations |
+| Null safety | Minimal | Added guards | Robustness |
 
-2. Create a folder named `PickUpAndHaul-Optimized`
+## Optimizations Retained
 
-3. Copy these folders/files to your mod folder:
-   - `About/` folder
-   - `Defs/` folder
-   - `Languages/` folder
+1. **Per-map cache** - `Dictionary<Map, HaulablesCacheEntry>` prevents cross-map invalidation
+2. **try/finally cleanup** - Ensures `skipCells`/`skipThings` are cleared even on exception
+3. **LINQ replacement** - `.Count == 0` instead of `.Any()` in `GetClosestAndRemove` and `FindClosestThing`
+4. **Null safety** - Added null checks in Harmony postfix patches
+5. **Cache cleanup** - `CleanCache()` method removes stale map entries
 
-4. Create the assembly folder and copy DLLs:
-   ```
-   PickUpAndHaul-Optimized/
-   └── 1.6/
-       └── Assemblies/
-           ├── PickUpAndHaul.dll (from Source/PickUpAndHaul/bin/Debug/net48/)
-           └── IHoldMultipleThings.dll (from Source/IHoldMultipleThings/bin/Debug/net48/)
-   ```
+## Optimizations Removed/Redesigned
 
-### Step 4: Enable in RimWorld
-
-1. Launch RimWorld
-2. Go to Mods
-3. Enable "Pick Up And Haul (Optimized)"
-4. Make sure Harmony is also enabled and loaded before PUAH
+1. **Destroyed Thing cleanup** - Removed. A destroyed Thing may represent a merged stack. Upstream only removes null references.
+2. **Static sort buffer** - Removed from `JobDriver_UnloadYourHauledInventory`. Restored upstream LINQ OrderBy for correctness.
+3. **Per-tick single-slot cache** - Replaced with per-map Dictionary cache.
+4. **Rotting item timer** - Removed. Restored upstream behavior where rot check only runs if reservations fail.
+5. **Unverified performance claims** - Removed "60% less log I/O" etc. Debug logs don't exist in Release builds.
 
 ## Testing
 
-Enable Development Mode in RimWorld (Options → General) to see debug info.
+Before using in a real save, test:
 
-Check the log for this message when the mod loads:
-```
-[PickUpAndHaul] Optimized v2.0 loaded. CE:False AT:False
-```
-
-Test scenarios:
-- ☐ Single item haul
-- ☐ Multi-item haul (3+ items)
-- ☐ Haul to container (shelf)
-- ☐ Haul to hopper
-- ☐ Pawn idle → unload
-- ☐ Full inventory → auto unload
-- ☐ Gear tab color coding
-- ☐ Animal hauling
-- ☐ Corpse hauling (if enabled)
-- ☐ Job interruption
-- ☐ Save/load cycle
-- ☐ Combat Extended (if installed)
-
-## Troubleshooting
-
-**Build Error: "Could not find Assembly-CSharp"**
-- Update the HintPath in your .csproj files to match your actual RimWorld installation
-
-**Build Error: "Could not find 0Harmony"**
-- Make sure Harmony is installed in RimWorld
-- Update the HintPath to point to 0Harmony.dll in the Harmony mod's Assemblies folder
-
-**Runtime Error: "TypeLoadException"**
-- You're building against a different RimWorld version than you're running
-- Make sure you're using the Assembly-CSharp.dll from the same game version
-
-**Mod doesn't load in RimWorld**
-- Check that Harmony is enabled and loaded before PUAH
-- Check that the DLLs are in the correct version folder (1.6/Assemblies/)
-- Check that About.xml has the correct packageId and supportedVersions
-
-**Pawns don't multi-haul**
-- Check the log for Harmony patch errors
-- Try disabling other mods that might conflict (Common Sense, While You're Up, etc.)
+- [ ] Basic multi-item hauling
+- [ ] Stack merging (pawn carries multiple stacks of same item)
+- [ ] Unloading to stockpiles, shelves, hoppers
+- [ ] Corpse hauling (if enabled)
+- [ ] Animal hauling (if enabled)
+- [ ] Save/load cycle with items in inventory
+- [ ] Multiple maps active simultaneously
+- [ ] Job interruption and recovery
+- [ ] Combat Extended compatibility (if using CE)
 
 ## Credits
 
 - **Mehni** - Original Pick Up And Haul mod
-- **AlexTD** - Major contributions to original mod
-- **You** - Optimizations
-
-Original mod: https://github.com/Mehni/PickUpAndHaul
+- **AlexTD** - Major contributions to original
+- **erdelf, Zorba, Why_is_that, Dingo** - Code and advice
+- **Chicken Plucker** - Preview image
+- **Brrainz** - Harmony library
+- **D3athAn63l** - Optimizations for this fork
 
 ## License
 
 MIT License (same as original)
+
+## Links
+
+- Original mod: https://github.com/Mehni/PickUpAndHaul
+- This fork: https://github.com/D3athAn63l/zPUAH
+- RimWorld: https://rimworldgame.com/

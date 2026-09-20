@@ -3,60 +3,21 @@ namespace PickUpAndHaul;
 public class CompHauledToInventory : ThingComp
 {
     private HashSet<Thing> takenToInventory = new();
-    private int _lastCleanTick = -1;
-    private bool _hasDirtyEntries;
-    
-    private const int CLEAN_INTERVAL_TICKS = 250; // ~4 seconds
 
     public HashSet<Thing> GetHashSet()
     {
-        // Only clean periodically instead of every access
-        if (_hasDirtyEntries)
-        {
-            var currentTick = Find.TickManager?.TicksGame ?? 0;
-            if (currentTick - _lastCleanTick >= CLEAN_INTERVAL_TICKS)
-            {
-                takenToInventory.RemoveWhere(x => x == null || x.Destroyed);
-                _lastCleanTick = currentTick;
-                _hasDirtyEntries = false;
-            }
-        }
+        // Only remove null references, NOT destroyed ones.
+        // A destroyed Thing may represent a stack that was merged into another stack.
+        // The unload logic handles merge recovery by looking up the def of stale references.
+        takenToInventory.RemoveWhere(x => x == null);
         return takenToInventory;
     }
 
-    public int Count => takenToInventory.Count;
-    
-    public bool Contains(Thing thing) => takenToInventory.Contains(thing);
-
-    public void RegisterHauledItem(Thing thing)
-    {
-        takenToInventory.Add(thing);
-    }
-
-    public void UnregisterHauledItem(Thing thing)
-    {
-        takenToInventory.Remove(thing);
-        _hasDirtyEntries = true;
-    }
-
-    public void MarkDirty() => _hasDirtyEntries = true;
-
-    public void ForceClean()
-    {
-        takenToInventory.RemoveWhere(x => x == null || x.Destroyed);
-        _hasDirtyEntries = false;
-        _lastCleanTick = Find.TickManager?.TicksGame ?? 0;
-    }
+    public void RegisterHauledItem(Thing thing) => takenToInventory.Add(thing);
 
     public override void PostExposeData()
     {
         base.PostExposeData();
-        Scribe_Collections.Look(ref takenToInventory, 
-            "ThingsHauledToInventory", LookMode.Reference);
-        if (Scribe.mode == LoadSaveMode.PostLoadInit)
-        {
-            // Clean up immediately after load
-            takenToInventory?.RemoveWhere(x => x == null);
-        }
+        Scribe_Collections.Look(ref takenToInventory, "ThingsHauledToInventory", LookMode.Reference);
     }
 }

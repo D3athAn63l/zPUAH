@@ -7,9 +7,6 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
     private int _countToDrop = -1;
     private int _unloadDuration = 3;
 
-    // Static buffer to avoid per-call allocation
-    private static readonly List<Thing> _sortBuffer = new List<Thing>(32);
-
     public override void ExposeData()
     {
         base.ExposeData();
@@ -18,6 +15,10 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
 
     public override bool TryMakePreToilReservations(bool errorOnFailed) => true;
 
+    /// <summary>
+    /// Find spot, reserve spot, pull thing out of inventory, go to spot, drop stuff, repeat.
+    /// </summary>
+    /// <returns></returns>
     public override IEnumerable<Toil> MakeNewToils()
     {
         if (ModCompatibilityCheck.ExtendedStorageIsActive)
@@ -35,17 +36,22 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
         var releaseReservation = ReleaseReservation();
         var carryToCell = Toils_Haul.CarryHauledThingToCell(TargetIndex.B);
 
+        // Equivalent to if (TargetB.HasThing)
         yield return Toils_Jump.JumpIf(carryToCell, TargetIsCell);
 
         var carryToContainer = Toils_Haul.CarryHauledThingToContainer();
         yield return carryToContainer;
         yield return Toils_Haul.DepositHauledThingInContainer(TargetIndex.B, TargetIndex.None);
         yield return Toils_Haul.JumpToCarryToNextContainerIfPossible(carryToContainer, TargetIndex.B);
+        // Equivalent to jumping out of the else block
         yield return Toils_Jump.Jump(releaseReservation);
 
+        // Equivalent to else
         yield return carryToCell;
         yield return Toils_Haul.PlaceHauledThingInCell(TargetIndex.B, carryToCell, true);
 
+        //If the original cell is full, PlaceHauledThingInCell will set a different TargetIndex resulting in errors on yield return Toils_Reserve.Release.
+        //We still gotta release though, mostly because of Extended Storage.
         yield return releaseReservation;
         yield return Toils_Jump.Jump(begin);
     }
@@ -81,6 +87,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                 }
                 if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !thing.def.EverStorable(false))
                 {
+                    Log.Message($"Pawn {pawn} incapable of hauling, dropping {thing}");
                     pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, _countToDrop, out thing);
                     EndJobWith(JobCondition.Succeeded);
                     carriedThings.Remove(thing);
@@ -121,7 +128,7 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                     return;
                 }
 
-                var currentPriority = StoragePriority.Unstored;
+                var currentPriority = StoragePriority.Unstored; // Currently in pawns inventory, so it's unstored
                 if (StoreUtility.TryFindBestBetterStorageFor(unloadableThing.Thing, pawn, pawn.Map, currentPriority,
                         pawn.Faction, out var cell, out var destination))
                 {
@@ -135,8 +142,11 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                         job.SetTarget(TargetIndex.B, cell);
                     }
 
+                    Log.Message($"{pawn} found destination {job.targetB} for thing {unloadableThing.Thing}");
                     if (!pawn.Map.reservationManager.Reserve(pawn, job, job.targetB))
                     {
+                        Log.Message(
+                            $"{pawn} failed reserving destination {job.targetB}, dropping {unloadableThing.Thing}");
                         pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
                             unloadableThing.Thing.stackCount, out _);
                         EndJobWith(JobCondition.Incompletable);
@@ -146,6 +156,8 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                 }
                 else
                 {
+                    Log.Message(
+                        $"Pawn {pawn} unable to find hauling destination, dropping {unloadableThing.Thing}");
                     pawn.inventory.innerContainer.TryDrop(unloadableThing.Thing, ThingPlaceMode.Near,
                         unloadableThing.Thing.stackCount, out _);
                     EndJobWith(JobCondition.Succeeded);
@@ -154,49 +166,28 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
         };
     }
 
-    // Optimized: replaced LINQ OrderBy with manual sort using static buffer
     private static ThingCount FirstUnloadableThing(Pawn pawn, HashSet<Thing> carriedThings)
     {
         var innerPawnContainer = pawn.inventory.innerContainer;
-        if (carriedThings.Count == 0) return default;
 
-        // Collect to buffer, sort without LINQ allocation
-        _sortBuffer.Clear();
-        _sortBuffer.AddRange(carriedThings);
-        _sortBuffer.RemoveAll(t => t == null || t.Destroyed);
-        
-        if (_sortBuffer.Count == 0) return default;
-
-        // Sort by category then name (same behavior as original)
-        _sortBuffer.Sort((a, b) =>
+        foreach (var thing in carriedThings.OrderBy(t => t.def.FirstThingCategory?.index).ThenBy(x => x.def.defName))
         {
-            var catA = a.def.FirstThingCategory?.index ?? int.MaxValue;
-            var catB = b.def.FirstThingCategory?.index ?? int.MaxValue;
-            var catCompare = catA.CompareTo(catB);
-            return catCompare != 0 
-                ? catCompare 
-                : string.Compare(a.def.defName, b.def.defName, StringComparison.Ordinal);
-        });
-
-        for (var i = 0; i < _sortBuffer.Count; i++)
-        {
-            var thing = _sortBuffer[i];
-            
+            //find the overlap.
             if (!innerPawnContainer.Contains(thing))
             {
-                // Merged stack - find the straggler
+                //merged partially picked up stacks get a different thingID in inventory
                 var stragglerDef = thing.def;
                 carriedThings.Remove(thing);
 
-                for (var j = 0; j < innerPawnContainer.Count; j++)
+                //we have no method of grabbing the newly generated thingID. This is the solution to that.
+                for (var i = 0; i < innerPawnContainer.Count; i++)
                 {
-                    var dirtyStraggler = innerPawnContainer[j];
+                    var dirtyStraggler = innerPawnContainer[i];
                     if (dirtyStraggler.def == stragglerDef)
                     {
                         return new ThingCount(dirtyStraggler, dirtyStraggler.stackCount);
                     }
                 }
-                continue; // Try next item instead of returning default
             }
             return new ThingCount(thing, thing.stackCount);
         }

@@ -423,31 +423,54 @@ export default function Optimized() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-orange-400 mb-2">⚡ Optimized Version</h1>
-        <p className="text-gray-400">Concrete performance improvements and bug fixes for your personal fork</p>
+        <h1 className="text-3xl font-bold text-orange-400 mb-2">⚡ Corrected Optimized Version</h1>
+        <p className="text-gray-400">Behaviorally compatible with upstream, with safe optimizations only</p>
+      </div>
+
+      {/* Critical Warning */}
+      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5">
+        <h3 className="font-bold text-red-400 mb-2">⚠️ Previous Version Had Critical Bugs</h3>
+        <p className="text-sm text-gray-300 mb-2">
+          The initial optimized version had several release-blocking issues that have now been fixed:
+        </p>
+        <ul className="text-xs text-gray-400 space-y-1 ml-4">
+          <li>• Missing pawn comp patch (PUAH wouldn't work at all)</li>
+          <li>• Wrong JobDef names (broke save compatibility)</li>
+          <li>• Destroyed Thing cleanup broke stack merge recovery</li>
+          <li>• PawnUnloadChecker continued after queueing job (false corruption detection)</li>
+          <li>• Single-slot cache caused cross-map invalidation</li>
+          <li>• Missing Krafs.Publicizer (build wouldn't compile)</li>
+        </ul>
+        <p className="text-xs text-gray-400 mt-2">
+          All issues have been corrected. This version is behaviorally identical to upstream Mehni 1.6.
+        </p>
       </div>
 
       {/* Summary */}
       <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-6">
-        <h2 className="text-lg font-bold text-white mb-3">Optimization Summary</h2>
+        <h2 className="text-lg font-bold text-white mb-3">Corrected Optimization Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-400">~40%</div>
-            <div className="text-xs text-gray-400">Less GC pressure</div>
+            <div className="text-2xl font-bold text-blue-400">9</div>
+            <div className="text-xs text-gray-400">Bugs fixed</div>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-green-400">~60%</div>
-            <div className="text-xs text-gray-400">Less log I/O</div>
+            <div className="text-2xl font-bold text-green-400">5</div>
+            <div className="text-xs text-gray-400">Safe optimizations</div>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-purple-400">5</div>
-            <div className="text-xs text-gray-400">Bug fixes</div>
+            <div className="text-xs text-gray-400">Removed (unsafe)</div>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-orange-400">5</div>
-            <div className="text-xs text-gray-400">Files optimized</div>
+            <div className="text-2xl font-bold text-orange-400">100%</div>
+            <div className="text-xs text-gray-400">Upstream compatible</div>
           </div>
         </div>
+        <p className="text-xs text-gray-400 mt-3 italic">
+          Note: Unverified performance claims (e.g., "60% less log I/O") have been removed. 
+          Debug logs don't exist in Release builds. Proper profiling is needed for real numbers.
+        </p>
       </div>
 
       {/* File selector */}
@@ -896,12 +919,72 @@ public static List<Thing> GetHaulablesCached(Map map)
 
       {/* Changelog */}
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h2 className="text-xl font-bold text-white mb-4">📝 Optimization Changelog</h2>
+        <h2 className="text-xl font-bold text-white mb-4">📝 Correction & Optimization Changelog</h2>
         <div className="space-y-3 text-sm">
+          <div className="flex items-start gap-3">
+            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">CRITICAL</span>
+            <div>
+              <p className="text-gray-300"><strong>Restored pawn comp patch</strong> — Patches/PickUpAndHaul.xml was missing. Without it, CompHauledToInventory is never injected into pawns and PUAH does nothing.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">CRITICAL</span>
+            <div>
+              <p className="text-gray-300"><strong>Fixed JobDef names</strong> — Changed HaulTo_inventory back to HaulToInventory. Required for DefOf resolution, save compatibility, and mod interop.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">CRITICAL</span>
+            <div>
+              <p className="text-gray-300"><strong>Restored destroyed Thing handling</strong> — CompHauledToInventory now only removes null references, not Destroyed ones. A destroyed Thing may represent a stack that was merged.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">CRITICAL</span>
+            <div>
+              <p className="text-gray-300"><strong>Fixed PawnUnloadChecker control flow</strong> — Now returns immediately after queueing unload job, preventing false corruption detection from running.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">CRITICAL</span>
+            <div>
+              <p className="text-gray-300"><strong>Restored build system</strong> — Added Krafs.Publicizer NuGet package. Required for accessing non-public RimWorld members used in Harmony patches.</p>
+            </div>
+          </div>
           <div className="flex items-start gap-3">
             <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">PERF</span>
             <div>
-              <p className="text-gray-300"><strong>Removed excessive logging</strong> — The original had 15+ Log.Message() calls per haul job. Each one triggers file I/O and string formatting. Removed or wrapped in #if DEBUG.</p>
+              <p className="text-gray-300"><strong>Per-map cache</strong> — Replaced single-slot cache with Dictionary&lt;Map, CacheEntry&gt;. Prevents cross-map invalidation in multi-map colonies.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">PERF</span>
+            <div>
+              <p className="text-gray-300"><strong>try/finally cleanup</strong> — skipCells/skipThings now cleaned up even if an exception occurs during job allocation.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">PERF</span>
+            <div>
+              <p className="text-gray-300"><strong>Replaced LINQ .Any() with .Count == 0</strong> — In GetClosestAndRemove and FindClosestThing. Avoids enumerator allocation in hot paths.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">FIX</span>
+            <div>
+              <p className="text-gray-300"><strong>Added null safety to Harmony patches</strong> — Postfix patches now check for null pawn and spawned state before processing.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">REVERTED</span>
+            <div>
+              <p className="text-gray-300"><strong>Removed static sort buffer</strong> — Restored upstream LINQ OrderBy in FirstUnloadableThing. Static buffer could cause issues with reentrant calls.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">REVERTED</span>
+            <div>
+              <p className="text-gray-300"><strong>Removed unverified performance claims</strong> — "60% less log I/O" was incorrect. Debug logs use [Conditional("DEBUG")] and don't exist in Release builds.</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
