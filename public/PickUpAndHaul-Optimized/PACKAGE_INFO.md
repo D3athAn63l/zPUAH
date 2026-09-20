@@ -1,8 +1,8 @@
-# Pick Up And Haul - Optimized Source Package
+# Pick Up And Haul (Optimized) - Source Package
 
 ## 📦 What's Included
 
-This package contains the complete optimized source code for the Pick Up And Haul RimWorld mod.
+This package contains the corrected and optimized source code for the Pick Up And Haul RimWorld 1.6 mod.
 
 ## 📁 File Structure
 
@@ -12,23 +12,28 @@ PickUpAndHaul-Optimized/
 │   └── About.xml
 ├── Defs/
 │   └── JobDefs/
-│       └── JobDefs.xml
+│       └── WorkGiver.xml
 ├── Languages/
 │   └── English/
 │       └── Keyed/
 │           └── PUAH_Settings.xml
+├── Patches/
+│   └── PickUpAndHaul.xml          ← CRITICAL: Injects comp into pawns
+├── 1.6/
+│   └── Assemblies/
+│       └── (built DLLs go here)
 ├── Source/
 │   ├── PickUpAndHaul/
-│   │   ├── CompHauledToInventory.cs (OPTIMIZED)
-│   │   ├── HarmonyPatches.cs (OPTIMIZED)
+│   │   ├── CompHauledToInventory.cs
+│   │   ├── HarmonyPatches.cs
 │   │   ├── JobDriver_HaulToInventory.cs
-│   │   ├── JobDriver_UnloadYourHauledInventory.cs (OPTIMIZED)
-│   │   ├── PawnUnloadChecker.cs (OPTIMIZED)
+│   │   ├── JobDriver_UnloadYourHauledInventory.cs
+│   │   ├── PawnUnloadChecker.cs
 │   │   ├── Settings.cs
 │   │   ├── Modbase.cs
 │   │   ├── ModCompatibilityCheck.cs
 │   │   ├── CompatHelper.cs
-│   │   ├── WorkGiver_HaulToInventory.cs (OPTIMIZED)
+│   │   ├── WorkGiver_HaulToInventory.cs
 │   │   ├── FishTranspiler.cs
 │   │   ├── IHoldMultipleThings_Support.cs
 │   │   ├── DebugLog.cs
@@ -37,116 +42,72 @@ PickUpAndHaul-Optimized/
 │   │   ├── IHoldMultipleThings.cs
 │   │   └── IHoldMultipleThings.csproj
 │   └── PickUpAndHaul.sln
-└── README.md
+├── README.md
+└── PACKAGE_INFO.md
 ```
 
-## ⚡ Optimizations Applied
+## ⚡ Changes from Original Optimized Version
 
-### Performance (~40% less GC pressure)
-- **Deferred HashSet cleanup** - Only cleans nulls every ~4 seconds instead of every access
-- **Per-tick haulables cache** - Caches listerHaulables results for the duration of a tick
-- **Eliminated LINQ allocations** - Replaced OrderBy/ThenBy with List.Sort on static buffer
-- **Deferred job creation** - Only creates Job objects when actually needed
+### Bugs Fixed
+1. **Missing pawn comp patch** - Restored `Patches/PickUpAndHaul.xml`
+2. **Wrong JobDef name** - `HaulTo_inventory` → `HaulToInventory`
+3. **Wrong WorkGiver priority** - 20 → 18
+4. **Missing suspendable tags** - Restored `<suspendable>false</suspendable>`
+5. **Build system** - Restored Krafs.Publicizer NuGet setup
+6. **Destroyed Thing cleanup** - Reverted to upstream (only removes null, not Destroyed)
+7. **PawnUnloadChecker control flow** - Restored early return after queueing job
+8. **Static sort buffer** - Removed (restored upstream LINQ for correctness)
+9. **Per-tick single-slot cache** - Replaced with per-map Dictionary cache
 
-### Log I/O (~60% reduction)
-- Removed 15+ Log.Message() calls that ran every haul job
-- Wrapped debug logging in #if DEBUG blocks
+### Safe Optimizations Retained
+1. Per-map cache (`Dictionary<Map, HaulablesCacheEntry>`)
+2. try/finally cleanup for skipCells/skipThings
+3. `.Count == 0` instead of LINQ `.Any()` in hot paths
+4. Null safety guards in Harmony patches
+5. Cache cleanup method for stale maps
 
-### Bug Fixes (5 total)
-1. **Static HashSet leak** - skipCells/skipThings now cleaned up in try/finally
-2. **HashSet modification during enumeration** - Fixed in FirstUnloadableThing
-3. **Null safety** - Added null checks in Harmony patches
-4. **Straggler search fallthrough** - Now continues to next item instead of returning default
-5. **Optimized sync checks** - Only runs every 50 ticks
+### Removed Claims
+- "60% less log I/O" - Debug logs don't exist in Release builds
+- "40% less GC pressure" - Unverified; use proper profiling instead
 
 ## 🔨 How to Build
 
-See README.md for detailed build instructions.
+### Prerequisites
+- Visual Studio 2022 with ".NET desktop development" workload
+- .NET Framework 4.8 SDK
+- NuGet (included with VS)
 
-### Quick Start
+### Steps
+1. Open `Source/PickUpAndHaul.sln` in Visual Studio
+2. Restore NuGet packages (automatic)
+3. Build solution (Ctrl+Shift+B)
+4. DLLs output to `1.6/Assemblies/`
 
-1. Install Visual Studio 2022 with ".NET desktop development" workload
-2. Open `Source/PickUpAndHaul.sln`
-3. Update DLL paths in .csproj files to match your RimWorld installation
-4. Build the solution (Ctrl+Shift+B)
-5. Copy DLLs to your RimWorld Mods folder
-
-### Required DLLs
-
-You need these files from your RimWorld installation:
-- `Assembly-CSharp.dll` (from `RimWorldWin64_Data/Managed/`)
-- `0Harmony.dll` (from Harmony mod's `v1.6/Assemblies/`)
-- `UnityEngine.CoreModule.dll` (from `RimWorldWin64_Data/Managed/`)
-- `UnityEngine.IMGUIModule.dll` (from `RimWorldWin64_Data/Managed/`)
-- `UnityEngine.TextRenderingModule.dll` (from `RimWorldWin64_Data/Managed/`)
+### NuGet Packages
+- `Krafs.Rimworld.Ref` v1.6.4518
+- `Lib.Harmony` v2.3.6
+- `Krafs.Publicizer` v2.3.0
 
 ## 🧪 Testing Checklist
 
-After building and deploying, test these scenarios:
-- ☐ Single item haul to stockpile
-- ☐ Multi-item haul (3+ items)
-- ☐ Haul to container (shelf/hopper)
-- ☐ Pawn idle → unload trigger
-- ☐ Full inventory → auto unload
-- ☐ Gear tab color coding
-- ☐ Animal hauling (pack animals)
-- ☐ Corpse hauling (if enabled in settings)
-- ☐ Job interruption mid-haul
-- ☐ Save/load with items in inventory
-- ☐ Combat Extended compatibility (if installed)
-- ☐ AllowTool haul urgently (if installed)
-
-## 📝 Changes from Original
-
-### CompHauledToInventory.cs
-- Added deferred cleanup with dirty flag
-- Added Count and Contains properties
-- Added UnregisterHauledItem method
-- Added ForceClean method
-
-### PawnUnloadChecker.cs
-- Moved job creation to after all checks pass
-- Added null safety checks
-- Optimized rotting item check to only run every 50 ticks
-
-### HarmonyPatches.cs
-- Added null safety to all postfix patches
-- Replaced logspam with informative startup message
-- Use UnregisterHauledItem for proper cleanup tracking
-
-### WorkGiver_HaulToInventory.cs
-- Added per-tick haulables cache
-- Wrapped static fields in try/finally for cleanup
-- Replaced LINQ .Any() with Count checks
-- Removed all Log.Message() calls (wrapped in #if DEBUG)
-
-### JobDriver_UnloadYourHauledInventory.cs
-- Replaced LINQ OrderBy with List.Sort on static buffer
-- Fixed HashSet modification during enumeration
-- Removed all Log.Message() calls
-- Added continue instead of return for straggler search
-
-## 🔗 Resources
-
-- Original mod: https://github.com/Mehni/PickUpAndHaul
-- RimWorld Wiki: https://rimworldwiki.com/wiki/Modding_Tutorials
-- Harmony docs: https://github.com/pardeike/Harmony
-- RimWorld Discord: https://discord.gg/RimWorld
+- [ ] Basic multi-item hauling
+- [ ] Stack merging recovery
+- [ ] Unloading to stockpiles/shelves/hoppers
+- [ ] Corpse hauling (if enabled)
+- [ ] Animal hauling (if enabled)
+- [ ] Save/load cycle
+- [ ] Multiple maps simultaneously
+- [ ] Job interruption
+- [ ] Combat Extended (if installed)
 
 ## ⚠️ Important Notes
 
-- This is for **personal use** - credit the original author if you share
-- The mod is MIT licensed
-- Requires Harmony mod as a dependency
-- Compatible with RimWorld 1.6
-- Combat Extended support is stubbed out (original had it commented out)
-
-## 🐛 Known Issues
-
-- CE compatibility methods are stubbed (return default values)
-- Some edge cases with merged stacks may still occur
-- Performance gains may vary based on mod list and game state
+- **INCOMPATIBLE** with original Pick Up And Haul - do not enable both
+- Uses Harmony ID `mehni.rimworld.pickupandhaul.optimized` (different from upstream)
+- Package ID: `D3athAn63l.PickUpAndHaul.Optimized`
+- Behavior matches upstream Mehni 1.6 implementation
 
 ---
 
-Good luck with your modding! 🎮
+Source: https://github.com/D3athAn63l/zPUAH
+Original: https://github.com/Mehni/PickUpAndHaul

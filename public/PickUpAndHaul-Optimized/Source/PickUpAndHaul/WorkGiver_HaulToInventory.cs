@@ -1,26 +1,57 @@
 using System.Linq;
 
 namespace PickUpAndHaul;
-
 public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 {
+    //Thanks to AlexTD for the more dynamic search range
+    //And queueing
+    //And optimizing
     private const float SEARCH_FOR_OTHERS_RANGE_FRACTION = 0.5f;
 
-    // Per-tick cache for haulables
-    private static int _haulablesCacheTick = -1;
-    private static List<Thing> _haulablesCache;
-    private static Map _haulablesCacheMap;
+    // Per-map cache to avoid cross-map invalidation
+    private static readonly Dictionary<Map, HaulablesCacheEntry> _haulablesCache = new();
+    
+    private struct HaulablesCacheEntry
+    {
+        public int tick;
+        public List<Thing> list;
+    }
 
     public static List<Thing> GetHaulablesCached(Map map)
     {
         var tick = Find.TickManager.TicksGame;
-        if (tick != _haulablesCacheTick || map != _haulablesCacheMap || _haulablesCache == null)
+        if (_haulablesCache.TryGetValue(map, out var entry) && entry.tick == tick)
         {
-            _haulablesCache = new List<Thing>(map.listerHaulables.ThingsPotentiallyNeedingHauling());
-            _haulablesCacheTick = tick;
-            _haulablesCacheMap = map;
+            return entry.list;
         }
-        return _haulablesCache;
+        
+        var list = new List<Thing>(map.listerHaulables.ThingsPotentiallyNeedingHauling());
+        _haulablesCache[map] = new HaulablesCacheEntry { tick = tick, list = list };
+        return list;
+    }
+
+    // Clean up stale map entries periodically to avoid memory leaks
+    public static void CleanCache()
+    {
+        var currentMaps = new HashSet<Map>();
+        foreach (var map in Find.Maps)
+        {
+            currentMaps.Add(map);
+        }
+        
+        var staleKeys = new List<Map>();
+        foreach (var key in _haulablesCache.Keys)
+        {
+            if (!currentMaps.Contains(key))
+            {
+                staleKeys.Add(key);
+            }
+        }
+        
+        foreach (var key in staleKeys)
+        {
+            _haulablesCache.Remove(key);
+        }
     }
 
     public override bool ShouldSkip(Pawn pawn, bool forced = false)
@@ -45,7 +76,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
     public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
     {
-        var list = new List<Thing>(GetHaulablesCached(pawn.Map));
+        var list = GetHaulablesCached(pawn.Map).ToList();
         Comparer.rootCell = pawn.Position;
         list.Sort(Comparer);
         return list;
@@ -64,8 +95,12 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
         && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, thing, forced)
         && StoreUtility.TryFindBestBetterStorageFor(thing, pawn, pawn.Map, StoreUtility.CurrentStoragePriorityOf(thing), pawn.Faction, out _, out _, false);
 
+    //bulky gear (power armor + minigun) so don't bother.
     public static bool OverAllowedGearCapacity(Pawn pawn) => MassUtility.GearMass(pawn) / MassUtility.Capacity(pawn) >= Settings.MaximumOccupiedCapacityToConsiderHauling;
 
+    //pick up stuff until you can't anymore,
+    //while you're up and about, pick up something and haul it
+    //before you go out, empty your pockets
     public override Job JobOnThing(Pawn pawn, Thing thing, bool forced = false)
     {
         if (!OkThingToHaul(thing, pawn) || !HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, thing, forced))
@@ -74,9 +109,9 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
         }
 
         if (OverAllowedGearCapacity(pawn)
-            || pawn.GetComp<CompHauledToInventory>() is null
-            || !IsNotCorpseOrAllowed(thing)
-            || MassUtility.WillBeOverEncumberedAfterPickingUp(pawn, thing, 1))
+            || pawn.GetComp<CompHauledToInventory>() is null // Misc. Robots compatibility
+            || !IsNotCorpseOrAllowed(thing) //This WorkGiver gets hijacked by AllowTool and expects us to urgently haul corpses.
+            || MassUtility.WillBeOverEncumberedAfterPickingUp(pawn, thing, 1)) //https://github.com/Mehni/PickUpAndHaul/pull/18
         {
             return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
         }
@@ -90,6 +125,8 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
         {
             if (haulDestination is ISlotGroupParent)
             {
+                //since we've gone through all the effort of getting the loc, might as well use it.
+                //Don't multi-haul food to hoppers.
                 if (HaulToHopperJob(thing, targetCell, map))
                 {
                     return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
@@ -115,6 +152,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
             return null;
         }
 
+        //credit to Dingo
         var capacityStoreCell
             = storeTarget.container is null ? CapacityAt(thing, storeTarget.cell, map)
             : nonSlotGroupThingOwner.GetCountCanAccept(thing);
@@ -124,15 +162,20 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
             return HaulAIUtility.HaulToStorageJob(pawn, thing, forced);
         }
 
-        var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget);
+        var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget);   //Things will be in queues
+        Log.Message($"-------------------------------------------------------------------");
+        Log.Message($"------------------------------------------------------------------");//different size so the log doesn't count it 2x
+        Log.Message($"{pawn} job found to haul: {thing} to {storeTarget}:{capacityStoreCell}, looking for more now");
 
+        //Find what fits in inventory, set nextThingLeftOverCount to be 
         var nextThingLeftOverCount = 0;
         var encumberance = MassUtility.EncumbrancePercent(pawn);
-        job.targetQueueA = new List<LocalTargetInfo>();
-        job.targetQueueB = new List<LocalTargetInfo>();
-        job.countQueue = new List<int>();
+        job.targetQueueA = new List<LocalTargetInfo>(); //more things
+        job.targetQueueB = new List<LocalTargetInfo>(); //more storage; keep in mind the job doesn't use it, but reserve it so you don't over-haul
+        job.countQueue = new List<int>();//thing counts
 
         var ceOverweight = false;
+
         if (ModCompatibilityCheck.CombatExtendedIsActive)
         {
             ceOverweight = CompatHelper.CeOverweight(pawn);
@@ -141,6 +184,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
         var distanceToHaul = (storeTarget.Position - thing.Position).LengthHorizontal * SEARCH_FOR_OTHERS_RANGE_FRACTION;
         var distanceToSearchMore = Math.Max(12f, distanceToHaul);
 
+        //Find extra things than can be hauled to inventory, queue to reserve them
         var haulUrgentlyDesignation = PickUpAndHaulDesignationDefOf.haulUrgently;
         var isUrgent = ModCompatibilityCheck.AllowToolIsActive && designationManager.DesignationOn(thing)?.def == haulUrgentlyDesignation;
 
@@ -172,7 +216,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
             bool Validator(Thing t)
                 => (!isUrgent || designationManager.DesignationOn(t)?.def == haulUrgentlyDesignation)
-                && GoodThingToHaul(t, pawn) && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, t, false);
+                && GoodThingToHaul(t, pawn) && HaulAIUtility.PawnCanAutomaticallyHaulFast(pawn, t, false); //forced is false, may differ from first thing
 
             haulables.Remove(thing);
 
@@ -185,9 +229,13 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
                     if (encumberance > 1 || ceOverweight)
                     {
+                        //can't CountToPickUpUntilOverEncumbered here, pawn doesn't actually hold these things yet
                         nextThingLeftOverCount = CountPastCapacity(pawn, nextThing, encumberance);
                         job.countQueue.Pop();
                         job.countQueue.Add(nextThingLeftOverCount);
+                        Log.Message($"Inventory allocated, will carry {nextThing}:{nextThingLeftOverCount}");
+
+                        // We are now out of inventory space - and should bail right away.
                         break;
                     }
                 }
@@ -249,6 +297,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
     public static Thing GetClosestAndRemove(IntVec3 center, Map map, List<Thing> searchSet, PathEndMode peMode, TraverseParms traverseParams, float maxDistance = 9999f, Predicate<Thing> validator = null)
     {
+        // Safe optimization: use Count instead of LINQ Any()
         if (searchSet == null || searchSet.Count == 0)
         {
             return null;
@@ -285,6 +334,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
     public static Thing FindClosestThing(List<Thing> searchSet, IntVec3 center, out int index)
     {
+        // Safe optimization: use Count instead of LINQ Any()
         if (searchSet.Count == 0)
         {
             index = -1;
@@ -323,6 +373,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
     {
         if (HoldMultipleThings_Support.CapacityAt(thing, storeCell, map, out var capacity))
         {
+            Log.Message($"Found external capacity of {capacity}");
             return capacity;
         }
 
@@ -344,6 +395,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
             && Stackable(nextThing, kvp));
         var storeCell = allocation.Key;
 
+        //Can't stack with allocated cells, find a new cell:
         if (storeCell == default)
         {
             var currentPriority = StoreUtility.CurrentStoragePriorityOf(nextThing);
@@ -353,22 +405,31 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
                 {
                     storeCell = new(nextStoreCell);
                     job.targetQueueB.Add(nextStoreCell);
+
                     storeCellCapacity[storeCell] = new(nextThing, CapacityAt(nextThing, nextStoreCell, map));
+
+                    Log.Message($"New cell for unstackable {nextThing} = {nextStoreCell}");
                 }
                 else
                 {
                     var destinationAsThing = (Thing)haulDestination;
                     storeCell = new(destinationAsThing);
                     job.targetQueueB.Add(destinationAsThing);
+
                     storeCellCapacity[storeCell] = new(nextThing, innerInteractableThingOwner.GetCountCanAccept(nextThing));
+
+                    Log.Message($"New haulDestination for unstackable {nextThing} = {haulDestination}");
                 }
             }
             else
             {
+                Log.Message($"{nextThing} can't stack with allocated cells");
+
                 if (job.targetQueueA.NullOrEmpty())
                 {
                     job.targetQueueA.Add(nextThing);
                 }
+
                 return false;
             }
         }
@@ -376,15 +437,18 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
         job.targetQueueA.Add(nextThing);
         var count = nextThing.stackCount;
         storeCellCapacity[storeCell].capacity -= count;
+        Log.Message($"{pawn} allocating {nextThing}:{count}, now {storeCell}:{storeCellCapacity[storeCell].capacity}");
 
         while (storeCellCapacity[storeCell].capacity <= 0)
         {
             var capacityOver = -storeCellCapacity[storeCell].capacity;
             storeCellCapacity.Remove(storeCell);
 
+            Log.Message($"{pawn} overdone {storeCell} by {capacityOver}");
+
             if (capacityOver == 0)
             {
-                break;
+                break;  //don't find new cell, might not have more of this thing to haul
             }
 
             var currentPriority = StoreUtility.CurrentStoragePriorityOf(nextThing);
@@ -394,26 +458,35 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
                 {
                     storeCell = new(nextStoreCell);
                     job.targetQueueB.Add(nextStoreCell);
+
                     var capacity = CapacityAt(nextThing, nextStoreCell, map) - capacityOver;
                     storeCellCapacity[storeCell] = new(nextThing, capacity);
+
+                    Log.Message($"New cell {nextStoreCell}:{capacity}, allocated extra {capacityOver}");
                 }
                 else
                 {
                     var destinationAsThing = (Thing)nextHaulDestination;
                     storeCell = new(destinationAsThing);
                     job.targetQueueB.Add(destinationAsThing);
+
                     var capacity = innerInteractableThingOwner.GetCountCanAccept(nextThing) - capacityOver;
+
                     storeCellCapacity[storeCell] = new(nextThing, capacity);
+
+                    Log.Message($"New haulDestination {nextHaulDestination}:{capacity}, allocated extra {capacityOver}");
                 }
             }
             else
             {
                 count -= capacityOver;
                 job.countQueue.Add(count);
+                Log.Message($"Nowhere else to store, allocated {nextThing}:{count}");
                 return false;
             }
         }
         job.countQueue.Add(count);
+        Log.Message($"{nextThing}:{count} allocated");
         return true;
     }
 
@@ -492,7 +565,9 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
                 if (StoreUtility.IsGoodStoreCell(cell, map, thing, carrier, faction) && cell != default)
                 {
                     foundCell = cell;
+
                     skipCells.Add(cell);
+
                     return true;
                 }
             }
@@ -563,6 +638,7 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
             }
             else
             {
+                //not supported. Seems dumb
                 continue;
             }
 

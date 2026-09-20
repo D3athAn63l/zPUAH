@@ -1,76 +1,58 @@
 namespace PickUpAndHaul;
-
-public static class PawnUnloadChecker
+public class PawnUnloadChecker
 {
     public static void CheckIfPawnShouldUnloadInventory(Pawn pawn, bool forced = false)
     {
-        // Early exits BEFORE creating any job
-        if (pawn == null || pawn.Faction != Faction.OfPlayerSilentFail)
-            return;
-            
-        if (!Settings.IsAllowedRace(pawn.RaceProps))
-            return;
-            
-        var itemsTakenToInventory = pawn.GetComp<CompHauledToInventory>();
+        var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
+        var itemsTakenToInventory = pawn?.GetComp<CompHauledToInventory>();
+
         if (itemsTakenToInventory == null)
-            return;
-
-        var carriedThings = itemsTakenToInventory.GetHashSet();
-        if (carriedThings == null || carriedThings.Count == 0)
-            return;
-            
-        if (pawn.inventory.innerContainer is not { } inventoryContainer 
-            || inventoryContainer.Count == 0)
-            return;
-
-        // Check if we should actually unload
-        bool shouldUnload = forced;
-        
-        if (!shouldUnload)
         {
-            shouldUnload = MassUtility.EncumbrancePercent(pawn) >= 0.90f 
-                           || carriedThings.Count >= 1;
+            return;
         }
-        
-        if (!shouldUnload && Find.TickManager.TicksGame % 50 == 0)
+
+        var carriedThing = itemsTakenToInventory.GetHashSet();
+
+        if (pawn.Faction != Faction.OfPlayerSilentFail || !Settings.IsAllowedRace(pawn.RaceProps)
+            || carriedThing == null || carriedThing.Count == 0
+            || pawn.inventory.innerContainer is not { } inventoryContainer || inventoryContainer.Count == 0)
         {
-            // Check for rotting items periodically
+            return;
+        }
+
+        if ((forced && job.TryMakePreToilReservations(pawn, false))
+            || ((MassUtility.EncumbrancePercent(pawn) >= 0.90f || carriedThing.Count >= 1)
+            && job.TryMakePreToilReservations(pawn, false)))
+        {
+            pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
+            return;
+        }
+
+        if (inventoryContainer.Count >= 1)
+        {
             for (var i = 0; i < inventoryContainer.Count; i++)
             {
                 var compRottable = inventoryContainer[i].TryGetComp<CompRottable>();
+
                 if (compRottable?.TicksUntilRotAtCurrentTemp < 30000)
                 {
-                    shouldUnload = true;
-                    break;
+                    pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
+                    return;
                 }
             }
         }
 
-        if (!shouldUnload) return;
-
-        // Only create job if we actually need it
-        var job = JobMaker.MakeJob(
-            PickUpAndHaulJobDefOf.UnloadYourHauledInventory, pawn);
-            
-        if (job.TryMakePreToilReservations(pawn, false))
+        if (Find.TickManager.TicksGame % 50 == 0 && inventoryContainer.Count < carriedThing.Count)
         {
-            pawn.jobs.jobQueue.EnqueueFirst(job, JobTag.Misc);
-        }
-
-        // Sync check
-        if (Find.TickManager.TicksGame % 50 == 0 
-            && inventoryContainer.Count < carriedThings.Count)
-        {
-            Verse.Log.Warning($"[PUAH] {pawn} inventory out of sync. Clearing.");
-            carriedThings.Clear();
+            Verse.Log.Warning("[PickUpAndHaul] " + pawn + " inventory was found out of sync with haul index. Pawn will drop their inventory.");
+            carriedThing.Clear();
             pawn.inventory.UnloadEverything = true;
         }
     }
 }
 
 [DefOf]
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", 
-    Justification = "Has to match defName")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Has to match defName")]
 public static class PickUpAndHaulJobDefOf
 {
     public static JobDef UnloadYourHauledInventory;

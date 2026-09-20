@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
     <name>Pick Up And Haul (Optimized)</name>
-    <author>Mehni (Optimized by You)</author>
+    <author>Mehni (Optimized by D3athAn63l)</author>
     <supportedVersions>
         <li>1.6</li>
     </supportedVersions>
-    <packageId>yourname.pickupandhaul.optimized</packageId>
+    <packageId>D3athAn63l.PickUpAndHaul.Optimized</packageId>
     <modDependencies>
         <li>
             <packageId>brrainz.harmony</packageId>
@@ -16,22 +16,38 @@
     <loadAfter>
         <li>brrainz.harmony</li>
     </loadAfter>
-    <description>Optimized version of Pick Up And Haul.
+    <incompatibleWith>
+        <li>Mehni.PickUpAndHaul</li>
+    </incompatibleWith>
+    <description>"Greatest hauling mod ever" - Chicken Plucker
 
-Colonists will gather stuff in their inventory, then haul it all to a stockpile.
+This is an optimized fork of Pick Up And Haul for RimWorld 1.6.
 
-This optimized version includes:
-- ~40% less GC pressure
-- ~60% less log I/O
-- 5 bug fixes
-- Better null safety
-- Deferred cleanup systems
+⚠️ INCOMPATIBLE WITH ORIGINAL MOD ⚠️
+Do NOT enable both "Pick Up And Haul" (by Mehni) and this optimized version at the same time. They will conflict.
 
-Original mod by Mehni. Optimizations for personal use.
+Functionality:
+Colonists will gather stuff in their inventory, then haul it all to a stockpile. This hauling mod greatly increases hauling efficiency because pawns can carry more than one item at a time.
+
+Optimizations in this fork:
+• Per-map caching to prevent cross-map invalidation
+• try/finally cleanup for temporary state
+• Reduced LINQ allocations in hot paths
+• Null safety improvements
+• Proper build system with Krafs.Publicizer
+
+Original mod by Mehni. Optimizations by D3athAn63l.
 
 Credits:
 - Mehni (original author)
-- AlexTD (contributions)
-- You (optimizations)
+- AlexTD (contributions to original)
+- erdelf, Zorba, Why_is_that, Dingo (code and advice)
+- Chicken Plucker (preview image)
+- Brrainz (Harmony library)
+
+Source: https://github.com/D3athAn63l/zPUAH
+Original: https://github.com/Mehni/PickUpAndHaul
+
+License: MIT
     </description>
 </ModMetaData>

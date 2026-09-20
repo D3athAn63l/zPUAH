@@ -1,22 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
-    <DebugType>portable</DebugType>
-    <AssemblyName>IHoldMultipleThings</AssemblyName>
     <RootNamespace>IHoldMultipleThings</RootNamespace>
+    <AssemblyName>IHoldMultipleThings</AssemblyName>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Optimize>true</Optimize>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+    <OutputPath>..\..\1.6\Assemblies\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <WarningLevel>5</WarningLevel>
   </PropertyGroup>
-
+  
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DefineConstants>DEBUG</DefineConstants>
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+  
   <ItemGroup>
-    <!-- UPDATE THESE PATHS to match your RimWorld installation -->
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\..\..\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4518" />
   </ItemGroup>
 </Project>

@@ -77,10 +77,7 @@ static class HarmonyPatches
             transpiler: new(typeof(HarmonyPatches), 
                 nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
-        // Optimized startup message (replaces pointless logspam)
-        Verse.Log.Message($"[PickUpAndHaul] Optimized v2.0 loaded. " +
-            $"CE:{ModCompatibilityCheck.CombatExtendedIsActive} " +
-            $"AT:{ModCompatibilityCheck.AllowToolIsActive}");
+        Verse.Log.Message("PickUpAndHaul (Optimized) welcomes you to RimWorld.");
     }
 
     private static bool Drop_Prefix(Pawn pawn, Thing thing)
@@ -173,7 +170,7 @@ static class HarmonyPatches
     public static Job HaulToStorageJobByRace(Pawn p, Thing t, bool forced) 
         => Settings.IsAllowedRace(p.RaceProps) ? HaulToInventoryJob(p, t, forced) : HaulAIUtility.HaulToStorageJob(p, t, forced);
     
-    private static Func<Pawn, Thing, bool, Job> HaulToInventoryJob => _haulToInventoryJob ??= new(((WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed("HaulTo_inventory").Worker).JobOnThing);
+    private static Func<Pawn, Thing, bool, Job> HaulToInventoryJob => _haulToInventoryJob ??= new(((WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed("HaulToInventory").Worker).JobOnThing);
     private static Func<Pawn, Thing, bool, Job> _haulToInventoryJob;
 
     public static IEnumerable<CodeInstruction> GearTabHighlightTranspiler(IEnumerable<CodeInstruction> instructions, MethodBase method)
