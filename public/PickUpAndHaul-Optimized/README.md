@@ -19,7 +19,8 @@ This is a personal optimization fork that:
 This fork does NOT:
 - Change gameplay behavior
 - Add new features
-- Remove logging (upstream uses `[Conditional("DEBUG")]` so debug logs don't exist in Release builds)
+
+A handful of `Log.Message` calls were dropped from `JobDriver_HaulToInventory` relative to upstream. This has no effect on a Release build either way: the logger is marked `[Conditional("DEBUG")]`, so those calls emit no IL outside a DEBUG build. No performance claim rests on it.
 
 ## Build Instructions
 
@@ -58,6 +59,7 @@ PickUpAndHaul-Optimized/
 │           └── PUAH_Settings.xml
 ├── Patches/
 │   └── PickUpAndHaul.xml
+├── LICENSE
 ├── 1.6/
 │   └── Assemblies/
 │       ├── PickUpAndHaul.dll
@@ -99,7 +101,7 @@ PickUpAndHaul-Optimized/
 2. **try/finally cleanup** - Ensures `skipCells`/`skipThings` are cleared even on exception
 3. **LINQ replacement** - `.Count == 0` instead of `.Any()` in `GetClosestAndRemove` and `FindClosestThing`
 4. **Null safety** - Added null checks in Harmony postfix patches
-5. **Cache cleanup** - `CleanCache()` method removes stale map entries
+5. **Cache cleanup** - `CleanCache()` drops entries for maps that are no longer loaded. It is called from `GetHaulablesCached()` behind a 2000-tick interval guard, so unloaded maps (quest maps, caravan maps, temporary maps) cannot be kept alive by the static cache.
 
 ## Optimizations Removed/Redesigned
 
@@ -123,6 +125,19 @@ Before using in a real save, test:
 - [ ] Job interruption and recovery
 - [ ] Combat Extended compatibility (if using CE)
 
+## Verification status
+
+These are four different things and only the first has been done:
+
+| | State |
+| --- | --- |
+| **Statically reviewed** — every file diffed against Mehni's 1.6 source; syntax parsed; XML, translation keys and DefOf names cross-checked | **Done** |
+| **Compiled** — Release build against the real RimWorld 1.6 reference assemblies | **Not verified** |
+| **Runtime tested** — the checklist below, run in game | **Not done** |
+| **Benchmarked** — measured allocation or frame-time numbers | **Not done** |
+
+Do not treat this fork as release-ready until at least the second and third rows are green.
+
 ## Credits
 
 - **Mehni** - Original Pick Up And Haul mod
@@ -134,7 +149,8 @@ Before using in a real save, test:
 
 ## License
 
-MIT License (same as original)
+MIT — see [LICENSE](LICENSE), which carries Mehni's original copyright notice as the licence requires.
+Copyright (c) 2018 Mehni; fork changes copyright (c) 2025 D3athAn63l.
 
 ## Links
 
