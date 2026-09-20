@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <PUAH.allowCorpses>Allow corpse hauling</PUAH.allowCorpses>
+  <PUAH.allowCorpsesTooltip>If enabled, pawns will pick up corpses into their inventory before hauling them to the morgue.</PUAH.allowCorpsesTooltip>
+  
+  <PUAH.allowAnimals>Allow animal hauling</PUAH.allowAnimals>
+  <PUAH.allowAnimalsTooltip>If enabled, pack animals can use multi-haul behavior.</PUAH.allowAnimalsTooltip>
+  
+  <PUAH.allowMechanoids>Allow mechanoid hauling</PUAH.allowMechanoids>
+  <PUAH.allowMechanoidsTooltip>If enabled, mechanoids can use multi-haul behavior.</PUAH.allowMechanoidsTooltip>
+  
+  <PUAH.minimumFreeInventorySpace>Minimum free inventory space</PUAH.minimumFreeInventorySpace>
+  <PUAH.minimumFreeInventorySpaceTooltip>Percentage of inventory capacity that must remain free before a pawn will consider multi-hauling. Higher values mean pawns will only multi-haul when they have lots of free space.</PUAH.minimumFreeInventorySpaceTooltip>
+</LanguageData>
