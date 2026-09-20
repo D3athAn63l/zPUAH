@@ -15,6 +15,7 @@ const navItems: { id: Section; label: string; icon: string }[] = [
   { id: 'harmony', label: 'Harmony Patches', icon: '🔧' },
   { id: 'compatibility', label: 'Compatibility', icon: '🔗' },
   { id: 'improvements', label: 'Improvement Ideas', icon: '💡' },
+  { id: 'optimized', label: 'Optimized Version', icon: '⚡' },
   { id: 'reference', label: 'Quick Reference', icon: '📖' },
 ];
 

@@ -7,12 +7,13 @@ import Settings from './sections/Settings';
 import HarmonyPatches from './sections/HarmonyPatches';
 import Compatibility from './sections/Compatibility';
 import Improvements from './sections/Improvements';
+import Optimized from './sections/Optimized';
 import QuickReference from './sections/QuickReference';
 
-export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'reference';
+export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'optimized' | 'reference';
 
 function App() {
-  const [activeSection, setActiveSection] = useState<Section>('overview');
+  const [activeSection, setActiveSection] = useState<Section>('optimized');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const renderSection = () => {
@@ -24,6 +25,7 @@ function App() {
       case 'harmony': return <HarmonyPatches />;
       case 'compatibility': return <Compatibility />;
       case 'improvements': return <Improvements />;
+      case 'optimized': return <Optimized />;
       case 'reference': return <QuickReference />;
       default: return <Overview />;
     }
