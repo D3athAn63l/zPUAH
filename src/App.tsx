@@ -8,9 +8,10 @@ import HarmonyPatches from './sections/HarmonyPatches';
 import Compatibility from './sections/Compatibility';
 import Improvements from './sections/Improvements';
 import Optimized from './sections/Optimized';
+import BuildGuide from './sections/BuildGuide';
 import QuickReference from './sections/QuickReference';
 
-export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'optimized' | 'reference';
+export type Section = 'overview' | 'architecture' | 'source' | 'settings' | 'harmony' | 'compatibility' | 'improvements' | 'optimized' | 'build' | 'reference';
 
 function App() {
   const [activeSection, setActiveSection] = useState<Section>('optimized');
@@ -26,6 +27,7 @@ function App() {
       case 'compatibility': return <Compatibility />;
       case 'improvements': return <Improvements />;
       case 'optimized': return <Optimized />;
+      case 'build': return <BuildGuide />;
       case 'reference': return <QuickReference />;
       default: return <Overview />;
     }
