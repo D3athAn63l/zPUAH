@@ -4,16 +4,22 @@
 
 The optimized fork has been corrected to restore full behavioral compatibility with Mehni's RimWorld 1.6 Pick Up And Haul implementation. All critical bugs have been fixed, unsafe optimizations removed, and safe optimizations retained.
 
-**Status:** Code repair complete; a Release build and runtime regression testing are still required before release.
+**Status:** Code repair complete; a Release build succeeds in CI; runtime regression testing is still required before release.
 
 **Verification levels — these are not interchangeable:**
 
 | Level | State |
 |-------|-------|
 | **Statically reviewed** — every source file diffed against Mehni's 1.6 tree, syntax parsed, XML / translation keys / DefOf names cross-checked | ✅ Done |
-| **Compiled** — clean Release build against the real RimWorld 1.6 reference assemblies | ❌ Not verified |
+| **Compiled** — clean Release build against the RimWorld 1.6 reference assemblies (Krafs.Rimworld.Ref) | ✅ Done — the *Build mod* GitHub Actions workflow (`windows-latest`) passed on `main` (run 35498277612) and runs on every push/PR |
+| **Unit-tested** — pure planning logic + repository invariants (`Source/PickUpAndHaul.Tests`, same workflow); no game involved | ✅ Done (added by the Phase 0 logistics refactor) |
 | **Runtime tested** — the Phase 12 checklist exercised in game | ❌ Not run |
 | **Benchmarked** — measured allocation or frame-time figures | ❌ Not run |
+
+> **Historical log.** The phases below describe the audit that preceded the Phase 0 logistics refactor, so the code locations they name
+> (`WorkGiver_HaulToInventory.GetHaulablesCached`, the static `skipCells`/`skipThings` with `try/finally`, ...) have since moved:
+> the haulables cache is `Planning/HaulablesCache.cs`, the temporary skip sets are the per-run `Planning/StorageSearchContext`.
+> See [`docs/LOGISTICS_ARCHITECTURE.md`](../../docs/LOGISTICS_ARCHITECTURE.md). Behavior is unchanged.
 
 ---
 
@@ -406,7 +412,7 @@ This was verified by diffing every source file in this fork against Mehni's 1.6 
 ⚠️ 7. Regression-test results (requires manual testing)  
 ⚠️ 8. Benchmark results (requires measurement)  
 ✅ 9. Updated README  
-⚠️ 10. RimWorld 1.6 mod package structure complete and validated — but not compiled (no build has been run)  
+⚠️ 10. RimWorld 1.6 mod package structure complete and validated; compiles in CI (not yet runtime-tested)  
 
 ---
 
@@ -421,10 +427,10 @@ All optimizations that could change hauling correctness have been removed. The r
 - Null safety (robustness improvement)
 
 **Next Steps (in order — none of these have been done yet):**
-1. Build the solution in **Release** and confirm it compiles cleanly. Until this passes, everything below is blocked.
+1. ~~Build the solution in **Release** and confirm it compiles cleanly.~~ Done: CI builds it (see the table at the top).
 2. Run the Phase 12 regression checklist in game, including the two-map and map-removal cases that exercise the haulables cache.
 3. Benchmark only if you intend to make performance claims. No claim in this repository is currently backed by measurement, and none should be added without one.
-4. Release only once 1 and 2 have actually passed.
+4. Release only once 1 and 2 have actually passed. The Phase 0 logistics refactor adds its own runtime checklist (`docs/PHASE0_RUNTIME_TESTS.md`), to be compared against `main`.
 
 ---
 

@@ -68,11 +68,12 @@ Then enable "Pick Up And Haul (Optimized)" in the mods list, with Harmony loaded
 | Verification | State |
 | --- | --- |
 | Static review against upstream 1.6 | Done |
-| Compiles in Release | **Not yet verified** — no build has been run against the real RimWorld 1.6 reference assemblies |
+| Compiles in Release | **Yes** — the *Build mod* workflow (GitHub Actions, `windows-latest`, Krafs.Rimworld.Ref reference assemblies) builds `IHoldMultipleThings` and `PickUpAndHaul` in Release; it passed on `main` and runs on every push/PR |
+| Automated tests | Pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`); run in the same workflow. They do **not** exercise RimWorld itself |
 | Runtime regression tested in game | **Not done** |
 | Benchmarked | **Not done** |
 
-See `public/PickUpAndHaul-Optimized/AUDIT_SUMMARY.md` for the detailed audit and the regression-test checklist.
+See `public/PickUpAndHaul-Optimized/AUDIT_SUMMARY.md` for the detailed audit and the regression-test checklist, and [`docs/LOGISTICS_ARCHITECTURE.md`](docs/LOGISTICS_ARCHITECTURE.md) for how the hauling code is organized (Phase 0 logistics refactor; runtime checklist in [`docs/PHASE0_RUNTIME_TESTS.md`](docs/PHASE0_RUNTIME_TESTS.md)).
 
 ## Documentation site
 

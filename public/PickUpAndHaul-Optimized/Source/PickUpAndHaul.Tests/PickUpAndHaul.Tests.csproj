@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests that run anywhere (no RimWorld, no game files; CI runs them on every push):
+      * the pure planning logic is compiled straight from the mod's source (it references no RimWorld types):
+        AllocationLedger (storage allocation accounting), PickupSequencer (the pickup loop), CapacityMath;
+      * a verbatim copy of the ORIGINAL pre-refactor algorithm (LegacyReference.cs) is run side by side with the
+        extracted code on thousands of randomized scenarios and must agree exactly, call by call;
+      * repository invariants (no static skip state, no WYU hooks, patch set, save keys).
+        dotnet test public/PickUpAndHaul-Optimized/Source/PickUpAndHaul.Tests
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>PickUpAndHaul.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\PickUpAndHaul\Planning\AllocationLedger.cs" Link="Linked\AllocationLedger.cs" />
+    <Compile Include="..\PickUpAndHaul\Planning\PickupSequencer.cs" Link="Linked\PickupSequencer.cs" />
+    <Compile Include="..\PickUpAndHaul\Planning\CapacityMath.cs" Link="Linked\CapacityMath.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>
