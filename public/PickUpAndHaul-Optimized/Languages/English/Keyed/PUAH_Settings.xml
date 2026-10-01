@@ -11,4 +11,7 @@
   
   <PUAH.minimumFreeInventorySpace>Minimum free inventory space</PUAH.minimumFreeInventorySpace>
   <PUAH.minimumFreeInventorySpaceTooltip>Percentage of inventory capacity that must remain free before a pawn will consider multi-hauling. Higher values mean pawns will only multi-haul when they have lots of free space.</PUAH.minimumFreeInventorySpaceTooltip>
+  <PUAH.nativeOpportunisticHauling>Native opportunistic hauling (Phase 1)</PUAH.nativeOpportunisticHauling>
+  <PUAH.nativeOpportunisticHaulingTooltip>Experimental Phase 1 integration. While a pawn is already travelling to a job, zPUAH may carry one worthwhile item along the way. Additional PUAH pickups are disabled for these detours.</PUAH.nativeOpportunisticHaulingTooltip>
+  <PUAH.nativeOpportunisticHaulingInactiveWyu>Inactive: a standalone While You're Up mod is loaded and keeps handling opportunistic hauling, so this option has no effect. Normal Pick Up And Haul is unaffected.</PUAH.nativeOpportunisticHaulingInactiveWyu>
 </LanguageData>

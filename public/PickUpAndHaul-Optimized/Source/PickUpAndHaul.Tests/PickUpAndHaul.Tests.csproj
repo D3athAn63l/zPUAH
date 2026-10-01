@@ -6,7 +6,9 @@
         AllocationLedger (storage allocation accounting), PickupSequencer (the pickup loop), CapacityMath;
       * a verbatim copy of the ORIGINAL pre-refactor algorithm (LegacyReference.cs) is run side by side with the
         extracted code on thousands of randomized scenarios and must agree exactly, call by call;
-      * repository invariants (no static skip state, no WYU hooks, patch set, save keys).
+      * Phase 1 (native opportunity): the pure route rules, the weak job registry, the invocation scopes, the single-pickup policy and
+        the standalone-WYU guard, compiled from source the same way;
+      * repository invariants (no static skip state, the pinned Harmony patch sets, save keys, Phase 1 scope limits).
         dotnet test public/PickUpAndHaul-Optimized/Source/PickUpAndHaul.Tests
   -->
 
@@ -22,6 +24,13 @@
     <Compile Include="..\PickUpAndHaul\Planning\AllocationLedger.cs" Link="Linked\AllocationLedger.cs" />
     <Compile Include="..\PickUpAndHaul\Planning\PickupSequencer.cs" Link="Linked\PickupSequencer.cs" />
     <Compile Include="..\PickUpAndHaul\Planning\CapacityMath.cs" Link="Linked\CapacityMath.cs" />
+    <!-- Phase 1 (native opportunity): the pure pieces, again with no RimWorld types -->
+    <Compile Include="..\PickUpAndHaul\Planning\SinglePickupPolicy.cs" Link="Linked\SinglePickupPolicy.cs" />
+    <Compile Include="..\PickUpAndHaul\Planning\SingleDestinationWorld.cs" Link="Linked\SingleDestinationWorld.cs" />
+    <Compile Include="..\PickUpAndHaul\NativeOpportunity\OpportunityRouteRules.cs" Link="Linked\OpportunityRouteRules.cs" />
+    <Compile Include="..\PickUpAndHaul\NativeOpportunity\StampedWeakRegistry.cs" Link="Linked\StampedWeakRegistry.cs" />
+    <Compile Include="..\PickUpAndHaul\NativeOpportunity\InvocationScopes.cs" Link="Linked\InvocationScopes.cs" />
+    <Compile Include="..\PickUpAndHaul\NativeOpportunity\NativeOpportunityActivation.cs" Link="Linked\NativeOpportunityActivation.cs" />
   </ItemGroup>
 
   <ItemGroup>

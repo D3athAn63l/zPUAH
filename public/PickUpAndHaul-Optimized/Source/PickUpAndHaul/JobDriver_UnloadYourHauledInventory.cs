@@ -1,4 +1,6 @@
 using System.Linq;
+using PickUpAndHaul.NativeOpportunity;
+using PickUpAndHaul.Planning;
 
 namespace PickUpAndHaul;
 
@@ -24,6 +26,12 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
         if (ModCompatibilityCheck.ExtendedStorageIsActive)
         {
             _unloadDuration = 20;
+        }
+
+        if (OpportunityTripRegistry.IsOpportunityJob(job))
+        {
+            // Phase 1 observability (Dev Mode only): the unload ended and vanilla resumes the original job it queued itself.
+            AddFinishAction(_ => OpportunityLog.TripFinished(pawn));
         }
 
         var begin = Toils_General.Wait(_unloadDuration);
@@ -128,6 +136,14 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                     return;
                 }
 
+                // Phase 1: the item of a native opportunity trip goes to the destination its route was approved for. Everything else,
+                // and every normal unload, takes the unchanged path below.
+                if (OpportunityTripRegistry.TryGet(job, out var trip) && trip.ItemDef == unloadableThing.Thing.def)
+                {
+                    UnloadAtPlannedDestination(unloadableThing.Thing, trip, carriedThings);
+                    return;
+                }
+
                 var currentPriority = StoragePriority.Unstored; // Currently in pawns inventory, so it's unstored
                 if (StoreUtility.TryFindBestBetterStorageFor(unloadableThing.Thing, pawn, pawn.Map, currentPriority,
                         pawn.Faction, out var cell, out var destination))
@@ -164,6 +180,33 @@ public class JobDriver_UnloadYourHauledInventory : JobDriver
                 }
             }
         };
+    }
+
+    /// <summary>
+    /// The unload of a native opportunity trip. The planned destination is checked once more; if it is still usable the normal
+    /// unload toils carry the item there, and no best-storage lookup is made. If it is not (it filled up, vanished, was forbidden or
+    /// reserved while the pawn walked) the bounded fail-safe applies: the item is dropped right here, near the planned destination
+    /// where the pawn stands, and the job ends, so vanilla resumes the original job instead of the pawn crossing the map to some newly
+    /// found storage and breaking the route that was approved. Whatever is dropped is an ordinary haulable for normal hauling later.
+    /// </summary>
+    private void UnloadAtPlannedDestination(Thing thing, OpportunityTripState trip, HashSet<Thing> carriedThings)
+    {
+        if (PlannedStorage.TryGetCapacity(pawn, thing, trip.PlannedStore, out var capacity) && capacity >= thing.stackCount)
+        {
+            job.SetTarget(TargetIndex.A, thing);
+            job.SetTarget(TargetIndex.B, trip.PlannedStore);
+            if (pawn.Map.reservationManager.Reserve(pawn, job, job.targetB, errorOnFailed: false))
+            {
+                _countToDrop = thing.stackCount;
+                OpportunityLog.PlannedUnloadUsed(pawn, trip.PlannedStore);
+                return;
+            }
+        }
+
+        pawn.inventory.innerContainer.TryDrop(thing, ThingPlaceMode.Near, thing.stackCount, out _);
+        carriedThings.Remove(thing);
+        OpportunityLog.PlannedStoreInvalid(pawn, thing, trip.PlannedStore);
+        EndJobWith(JobCondition.Succeeded);
     }
 
     private static ThingCount FirstUnloadableThing(Pawn pawn, HashSet<Thing> carriedThings)

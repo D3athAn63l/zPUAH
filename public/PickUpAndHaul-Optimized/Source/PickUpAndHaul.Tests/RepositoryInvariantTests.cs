@@ -122,9 +122,15 @@ public class RepositoryInvariantTests
         Assert.True(planCall > makeJob, "JobMaker.MakeJob must come before the planning pass");
         Assert.True(apply > planCall, "the plan is applied to the already created job");
 
-        // exactly one Job is created anywhere in the planning code, and never by the plan itself
-        var makeJobCalls = Directory.EnumerateFiles(Src("Planning"), "*.cs").Sum(f => Regex.Matches(Code(f), @"\bMakeJob\s*\(").Count);
-        Assert.Equal(1, makeJobCalls);
+        // Exactly one Job is created per planner, and never by the plan itself. Phase 1 intentionally adds a second planner (the
+        // opportunity one, see Phase1InvariantTests for ITS ordering); the normal planner's single MakeJob is asserted above and here.
+        var makeJobCallsByFile = Directory.EnumerateFiles(Src("Planning"), "*.cs")
+            .Select(f => (File: Path.GetFileName(f), Count: Regex.Matches(Code(f), @"\bMakeJob\s*\(").Count))
+            .Where(x => x.Count > 0)
+            .OrderBy(x => x.File, StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(new[] { "HaulJobPlanner.cs", "OpportunityHaulPlanner.cs" }, makeJobCallsByFile.Select(x => x.File).ToArray());
+        Assert.All(makeJobCallsByFile, x => Assert.Equal(1, x.Count));
         Assert.DoesNotContain("MakeJob", Code(Src("Planning", "HaulPlan.cs")));
         Assert.DoesNotContain("ToJob", planner);
         Assert.Contains("public void ApplyTo(Job job)", Code(Src("Planning", "HaulPlan.cs")));
@@ -183,23 +189,61 @@ public class RepositoryInvariantTests
         }
     }
 
+    /// <summary>
+    /// Phase 1 intentionally adds ONE thing from the While You're Up family, the native single-opportunity slice, in a known set of
+    /// files. Everything else that family does (construction / bill supply, BeforeCarry, manifests, the standalone mods' names) stays
+    /// out, and the names of the standalone mods appear in exactly one place: the coexistence guard's package-id list.
+    /// </summary>
     [Fact]
     public void NoWhileYoureUpBehaviorSlippedIn()
     {
-        var forbidden = new[]
+        var nativeDir = Src("NativeOpportunity") + Path.DirectorySeparatorChar;
+
+        // not implemented in Phase 1, anywhere
+        var notYet = new[]
         {
-            "TryOpportunisticJob", "ResourceDeliverJobFor", "WorkGiver_ConstructDeliverResources", "JobDriver_DoBill", "Opportun",
-            "WhileYoureUp", "zWYU", "JobsOfOpportunity", "CodeOptimist", "BeforeCarry", "HaulManifest",
+            "ResourceDeliverJobFor", "WorkGiver_ConstructDeliverResources", "ConstructDeliver", "JobDriver_DoBill", "BeforeCarry",
+            "HaulManifest", "Manifest",
         };
+
+        // the opportunity vocabulary may only appear in the files that are part of the slice
+        var opportunityFiles = new[]
+        {
+            "HarmonyPatches.cs", "Settings.cs", "JobDriver_HaulToInventory.cs", "JobDriver_UnloadYourHauledInventory.cs",
+            Path.Combine("Planning", "HaulJobPlanner.cs"), Path.Combine("Planning", "HaulPlanningRequest.cs"),
+            Path.Combine("Planning", "OpportunityHaulPlanner.cs"),
+        };
+
+        // the standalone mods' package ids live in the guard's list and nowhere else
+        var guard = Path.Combine(nativeDir, "NativeOpportunityActivation.cs");
+
         foreach (var file in ModSources())
         {
             var code = Code(file);
-            foreach (var word in forbidden)
+            var relative = Path.GetRelativePath(Src(), file);
+            var inSlice = file.StartsWith(nativeDir, StringComparison.Ordinal) || opportunityFiles.Contains(relative);
+
+            foreach (var word in notYet)
             {
-                Assert.True(!code.Contains(word), $"{Path.GetFileName(file)} mentions '{word}' - Phase 0 adds no opportunity-hauling behavior");
+                Assert.True(!code.Contains(word), $"{relative} mentions '{word}' - Phase 1 adds no construction/bill supply, BeforeCarry or manifests");
+            }
+
+            foreach (var word in new[] { "Opportun", "TryOpportunisticJob" })
+            {
+                Assert.True(inSlice || !code.Contains(word), $"{relative} mentions '{word}' but is not part of the Phase 1 opportunity slice");
+            }
+
+            foreach (var word in new[] { "WhileYoureUp", "zWYU", "JobsOfOpportunity", "CodeOptimist", "whileyoureup" })
+            {
+                Assert.True(file == guard || !code.Contains(word), $"{relative} names a standalone While You're Up mod; only the coexistence guard's package-id list may");
             }
         }
-        // and no project/package dependency on it either
+
+        // the vanilla hook point is named in exactly one file
+        Assert.Contains("TryOpportunisticJob", Code(Path.Combine(nativeDir, "OpportunityPatches.cs")));
+        Assert.Single(ModSources(), f => Code(f).Contains("TryOpportunisticJob"));
+
+        // and no project/package dependency on any of them either
         foreach (var csproj in Directory.EnumerateFiles(Src(), "*.csproj"))
         {
             var text = File.ReadAllText(csproj);
