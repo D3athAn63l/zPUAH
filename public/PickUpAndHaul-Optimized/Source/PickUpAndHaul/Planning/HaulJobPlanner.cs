@@ -9,9 +9,11 @@ namespace PickUpAndHaul.Planning;
 /// <para>Ownership: every call creates its own <see cref="StorageSearchContext"/>, <see cref="StorageAllocator"/>,
 /// <see cref="PickupPolicy"/> and <see cref="AllocationLedger{TTarget,TItem}"/>; none of them outlives the call, none is shared
 /// with another pawn or job, and no static state is touched except the shared per-tick haulables cache (read, then copied).</para>
-/// <para>Planning is side-effect free for the world: nothing is reserved and no pawn/Thing state changes. The only things that
-/// may happen on the way are RimWorld's own diagnostics (<c>JobFailReason</c>, error log) in the same cases as before, and the
-/// Job object is not allocated until a plan exists.</para>
+/// <para>Planning does not change the world: nothing is reserved and no pawn/Thing state changes. The only things that may
+/// happen on the way are RimWorld's own diagnostics (<c>JobFailReason</c>, error log) in the same cases as before.</para>
+/// <para>Job creation timing is as it was before the refactor: the one Job is created (<c>JobMaker.MakeJob</c>, which also takes its
+/// load id) right after the initial storage, the hopper rule and the initial capacity have been settled, and BEFORE any further
+/// pickup scanning, storage search or allocation. The plan is then applied to that Job. A source invariant test pins this.</para>
 /// </remarks>
 internal static class HaulJobPlanner
 {
@@ -43,12 +45,14 @@ internal static class HaulJobPlanner
             return FallbackHaulJob(request);
         }
 
+        var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget);   //Things will be in queues
         Log.Message($"-------------------------------------------------------------------");
         Log.Message($"------------------------------------------------------------------");//different size so the log doesn't count it 2x
         Log.Message($"{pawn} job found to haul: {thing} to {storeTarget}:{capacityStoreCell}, looking for more now");
 
         var plan = Plan(pawn, thing, storeTarget, capacityStoreCell);
-        return plan.ToJob();
+        plan.ApplyTo(job);
+        return job;
     }
 
     /// <summary>

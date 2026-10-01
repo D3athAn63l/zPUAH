@@ -5,6 +5,11 @@ components so that later phases can reuse them. It adds **no opportunity-hauling
 about While You're Up, `TryOpportunisticJob`, construction supply, bill ingredients, route manifests or a scheduler. Normal zPUAH
 gameplay is intended to be exactly what it was before this change.
 
+**Project context.** The While You're Up behavior that a later phase will bring in natively is defined by **zWYU**
+(<https://github.com/D3athAn63l/zWYU>, PR #1 **merged and runtime-validated in RimWorld 1.6**), which is the behavioral reference for
+those semantics. The future native zPUAH integration should reproduce zWYU's semantics where they apply, not copy its implementation
+architecture. Phase 0 contains and depends on none of it.
+
 Everything below lives in `public/PickUpAndHaul-Optimized/Source/PickUpAndHaul/` (`Planning/` for the new pieces).
 
 ## 1. The normal-haul flow
@@ -22,12 +27,14 @@ vanilla job system
             │       Hopper / capacity 0              -> vanilla HaulToStorageJob (the same fallbacks as before)
             │       no storage                       -> JobFailReason + null;  unsupported destination -> error log + null
             ▼
+          JobMaker.MakeJob(HaulToInventory, null, anchor)     the ONE job, created here exactly as before the refactor
+            ▼
           Plan:  one StorageSearchContext + StorageAllocator + PickupPolicy + AllocationLedger for THIS call
             PickupSequencer.Run:  allocate the first thing, then repeat
                  PickupPolicy.NextCandidateAfter(last)   nearest valid haulable (from HaulablesCache)  ──► AllocationLedger.Allocate
                  stop when the pawn's inventory is full (encumbrance > 1) or no candidate is left
             ▼
-          HaulPlan  (anchor, pickups, reservations, counts)  ──ToJob()──►  HaulToInventory job
+          HaulPlan  (anchor, pickups, reservations, counts)  ──ApplyTo(job)──►  the job's three queues
 ```
 
 After the job exists nothing about it changed: `JobDriver_HaulToInventory` walks the pickup queue, `JobDriver_UnloadYourHauledInventory`
@@ -65,8 +72,11 @@ unloads, `PawnUnloadChecker` / `CompHauledToInventory` / the Harmony patches are
 * The only shared state is `HaulablesCache`. Its list is the cache's own instance and is shared within a tick: **callers copy it**
   before sorting or removing (`PickupPolicy` and `PotentialWorkThingsGlobal` do). The comparer used for sorting is created per
   call; the original mutated one static comparer instance.
-* Planning does not reserve anything and does not change any pawn or Thing; the Job object is only allocated once a plan exists.
-  Reservations still happen where they always did, in `JobDriver_HaulToInventory.TryMakePreToilReservations`.
+* Planning does not reserve anything and does not change any pawn or Thing. The Job is created at the same point as before the
+  refactor (after the initial storage, the hopper rule and the initial capacity are settled, before any pickup scan, storage search or
+  allocation), so it takes its load id at the same moment; the plan is then applied to that one job (`HaulPlan.ApplyTo`). A source
+  invariant test keeps `JobMaker.MakeJob` there. Reservations still happen where they always did, in
+  `JobDriver_HaulToInventory.TryMakePreToilReservations`.
 
 ## 4. Queue semantics (unchanged)
 
@@ -106,7 +116,8 @@ Phase 0 deliberately keeps this split: the planner decides *what to pick up and 
 
 Behavioral equivalence is the entire point of the PR: a later phase can only be judged against a baseline that did not move.
 So the extracted code is the old code, moved; the only restructurings are the ones that make state explicit (the context, per-call comparer,
-the job being built from a plan at the end instead of written into during the loop) and a couple of semantically identical rewrites
+the job's three queues being filled from the finished plan at the end instead of being written into during the loop; the Job itself
+is created at its original point) and a couple of semantically identical rewrites
 (`FirstOrDefault` -> `foreach`, a local-function delegate -> one delegate field per plan). No performance claim is made for any of it:
 nothing has been benchmarked. The extracted accounting is
 verified against a verbatim copy of the original on 20,000 randomized scenarios, comparing the three queues *and* every question asked
@@ -118,8 +129,9 @@ of the world, in order.
 |---|---|
 | A different *kind* of request (normal / opportunistic / construction supply / bill ingredient), the original job, route constraints, "allow additional pickups" | New fields on `HaulPlanningRequest` (and, if needed, `HaulPlan`); a new caller builds the request instead of `WorkGiver_HaulToInventory.JobOnThing`; `HaulJobPlanner.TryCreate` is the one place that reads them. |
 | A planned/expected destination per pickup (and validating it at unload time) | `HaulPlan` gains an entry per pickup; `StorageAllocator.TryFindNewTarget` and `StorageResolver.ResolveInitial` are where destinations are chosen, so a different chooser (e.g. midpoint-toward-the-job storage) is substituted there; `JobDriver_UnloadYourHauledInventory.FindTargetOrDrop` is where an expected destination would be checked against the world. |
-| Rejecting an extra pickup because the combined route is no longer worthwhile | A different `IPickupPolicy<Thing>` (or a decorator around `PickupPolicy`): `NextCandidateAfter` simply stops returning candidates that break the route budget. `PickupSequencer` does not change. |
-| A bounded multi-pickup trip (at most N pickups / one route) | Same policy seam: return `null` after the bound. The driver's "haul more within 12 cells" chaining (`JobDriver_HaulToInventory`, last toil before going to storage) is the one place that would need to be told not to chain. |
+| **Pickup-side** constraints: candidate eligibility, a maximum pickup count, the pickup search radius, simple conditions on the pickup route | A different `IPickupPolicy<Thing>` (or a decorator around `PickupPolicy`). `NextCandidateAfter` sees the candidate *Thing* and can stop returning candidates; `PickupSequencer` does not change. This is a valid seam for these restrictions only. |
+| A bounded multi-pickup trip (at most N pickups) | The same pickup-side seam for the bound itself (return `null` after N pickups). The driver's "haul more within 12 cells" chaining (`JobDriver_HaulToInventory`, last toil before going to storage) is the one place that would additionally need to be told not to chain. |
+| **Full combined-route approval** (the original WYU / PUAH+ semantics: start → pickup 1 → pickup 2 → … → first storage → further storage → the original job's destination) | **Not reachable through `PickupPolicy` alone**: the route depends on each item's actual `StoreTarget`, which is only chosen later by `AllocationLedger` → `StorageAllocator` → `StorageResolver`. It will need a future **allocation proposal / validation seam**: candidate Thing → proposed `StoreTarget` → route validator ("does adding this Thing *and* that target keep the combined trip acceptable?") → accept the allocation or reject the candidate. **Phase 0 does not implement that seam**; it only leaves the pieces (candidate choice, target choice, accounting) explicit and separate enough that it can be added without breaking `JobOnThing` apart again. |
 | Reusing capacity and allocation without the work giver | `CapacityMath`, `AllocationLedger`, `StorageAllocator`, `StorageResolver` take plain arguments; none depends on `WorkGiver_HaulToInventory`. |
 | Graceful degradation after load, when ephemeral opportunity state is gone | Plans are not persisted (a loaded job is just an ordinary haul job); anything ephemeral should live beside the job, keyed by job, and be optional for the drivers. |
 
@@ -139,3 +151,19 @@ of the world, in order.
 What these tests cannot cover is the RimWorld-bound glue (`StorageResolver`, `StorageAllocator`, `PickupPolicy`, `HaulJobPlanner`): that
 code was moved/transliterated with the original text diffed against it, and needs the in-game checklist in
 [`PHASE0_RUNTIME_TESTS.md`](PHASE0_RUNTIME_TESTS.md).
+
+## 9. Compatibility note: legacy "While You're Up" PUAH+ integration
+
+The *original* While You're Up detects a compatible Pick Up And Haul **by reflection** and expects internals of
+`WorkGiver_HaulToInventory`, among them `HasJobOnThing`, `JobOnThing`, `TryFindBestBetterStoreCellFor`, `AllocateThingAtCell` and the
+static `skipCells`, plus related members. Phase 0 intentionally moved or removed several of those (`HasJobOnThing` and `JobOnThing` remain;
+removed from the WorkGiver: the static `skipCells` / `skipThings`, `AllocateThingAtCell`, `Stackable`, `TryFindBestBetterStorageFor`,
+`TryFindBestBetterStoreCellFor`, `TryFindBestBetterNonSlotGroupStorageFor`, and the nested `StoreTarget` / `CellAllocation` /
+`ThingPositionComparer` types), so
+**the original WYU's legacy PUAH+ reflection integration will no longer recognize the refactored zPUAH WorkGiver. This is intentional.**
+Future WYU integration will be native inside zPUAH rather than preserving the old external patch/reflection surface, and zWYU (merged,
+runtime-validated) is the behavioral reference instead.
+
+Consequently no compatibility forwards exist for it, and none should be added: the static `skipCells` / `skipThings`,
+`AllocateThingAtCell` and the old storage-helper surface are deliberately gone. (The one-line forwards that remain on
+`WorkGiver_HaulToInventory` are only for helpers that never depended on that static state.)

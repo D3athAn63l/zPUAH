@@ -1,7 +1,7 @@
 namespace PickUpAndHaul.Planning;
 
 /// <summary>
-/// The outcome of planning one zPUAH haul, as plain data, before it becomes a RimWorld Job. The three sequences keep the
+/// The outcome of planning one zPUAH haul, as plain data, before it is written into the RimWorld Job. The three sequences keep the
 /// meaning the existing job drivers rely on (unchanged):
 /// <code>
 /// Pickups      -> job.targetQueueA  things to pick up, in order
@@ -9,6 +9,8 @@ namespace PickUpAndHaul.Planning;
 /// Counts       -> job.countQueue    how many of each pickup to take
 /// Anchor       -> job.targetB       the initial storage target (also where the pawn goes before unloading)
 /// </code>
+/// The Job itself is created by <see cref="HaulJobPlanner"/> (targetA = null, targetB = <see cref="Anchor"/>) before planning starts,
+/// as it always was; <see cref="ApplyTo"/> only fills in the three queues.
 /// </summary>
 internal sealed class HaulPlan
 {
@@ -25,9 +27,9 @@ internal sealed class HaulPlan
         Counts = counts;
     }
 
-    public Job ToJob()
+    /// <summary>Writes the three queues into the job the planner created for this plan. Does not create or replace the Job.</summary>
+    public void ApplyTo(Job job)
     {
-        var job = JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, Anchor);   //Things will be in queues
         job.targetQueueA = new List<LocalTargetInfo>(); //more things
         job.targetQueueB = new List<LocalTargetInfo>(); //more storage; keep in mind the job doesn't use it, but reserve it so you don't over-haul
         job.countQueue = new List<int>();//thing counts
@@ -46,7 +48,5 @@ internal sealed class HaulPlan
         {
             job.countQueue.Add(Counts[i]);
         }
-
-        return job;
     }
 }

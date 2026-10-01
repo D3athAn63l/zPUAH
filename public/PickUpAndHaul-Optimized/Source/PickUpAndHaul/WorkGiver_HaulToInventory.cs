@@ -56,8 +56,10 @@ public class WorkGiver_HaulToInventory : WorkGiver_HaulGeneral
 
     // ---------------------------------------------------------------------------------------------------------------------
     // The public statics below existed on this class before the planning code moved to PickUpAndHaul.Planning. They are kept as
-    // one-line forwards so that anything already calling them (this mod's job driver, other mods) keeps working. New code in this
-    // mod should call the Planning types directly.
+    // one-line forwards for helpers that never depended on the removed static skip state. New code in this mod should call the
+    // Planning types directly. The skip-state-dependent internals (skipCells/skipThings, AllocateThingAtCell, the storage searches)
+    // are intentionally NOT forwarded: the original While You're Up's legacy PUAH+ reflection integration relied on them and is
+    // intentionally no longer supported (docs/LOGISTICS_ARCHITECTURE.md section 9).
     // ---------------------------------------------------------------------------------------------------------------------
 
     public static List<Thing> GetHaulablesCached(Map map) => HaulablesCache.Get(map);

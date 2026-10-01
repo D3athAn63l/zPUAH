@@ -92,6 +92,44 @@ public class RepositoryInvariantTests
         Assert.True(body.Split('\n').Length < 30, "JobOnThing should be a short validate-and-delegate method");
     }
 
+    /// <summary>
+    /// Phase 0 restores (and must keep) the pre-refactor Job creation timing: the single HaulToInventory Job is created
+    /// (JobMaker.MakeJob also takes the job's load id) after the initial storage / hopper rule / initial capacity / zero-capacity
+    /// fallback have been settled, and BEFORE any additional-pickup scan, storage search or allocation. The plan is applied to
+    /// that Job; it must not create one of its own.
+    /// </summary>
+    [Fact]
+    public void TheJobIsCreatedAtTheOriginalPointBeforeAnyPlanning()
+    {
+        var planner = Code(Src("Planning", "HaulJobPlanner.cs"));
+        var makeJob = planner.IndexOf("JobMaker.MakeJob(PickUpAndHaulJobDefOf.HaulToInventory, null, storeTarget)", StringComparison.Ordinal);
+        Assert.True(makeJob >= 0, "HaulJobPlanner must create the HaulToInventory job with targetA = null, targetB = the initial storage target");
+
+        // after everything that can still return a fallback / null
+        foreach (var before in new[]
+        {
+            "StorageResolver.ResolveInitial(", "case InitialStorageResult.Hopper:", "case InitialStorageResult.NoStorage:",
+            "case InitialStorageResult.Unsupported:", "StorageResolver.InitialCapacity(", "if (capacityStoreCell == 0)",
+        })
+        {
+            var at = planner.IndexOf(before, StringComparison.Ordinal);
+            Assert.True(at >= 0 && at < makeJob, $"'{before}' must come before JobMaker.MakeJob in HaulJobPlanner.TryCreate");
+        }
+
+        // before the planning pass (candidate scan, allocation, further storage searches) and before the plan is applied
+        var planCall = planner.IndexOf("var plan = Plan(", StringComparison.Ordinal);
+        var apply = planner.IndexOf("plan.ApplyTo(job);", StringComparison.Ordinal);
+        Assert.True(planCall > makeJob, "JobMaker.MakeJob must come before the planning pass");
+        Assert.True(apply > planCall, "the plan is applied to the already created job");
+
+        // exactly one Job is created anywhere in the planning code, and never by the plan itself
+        var makeJobCalls = Directory.EnumerateFiles(Src("Planning"), "*.cs").Sum(f => Regex.Matches(Code(f), @"\bMakeJob\s*\(").Count);
+        Assert.Equal(1, makeJobCalls);
+        Assert.DoesNotContain("MakeJob", Code(Src("Planning", "HaulPlan.cs")));
+        Assert.DoesNotContain("ToJob", planner);
+        Assert.Contains("public void ApplyTo(Job job)", Code(Src("Planning", "HaulPlan.cs")));
+    }
+
     [Fact]
     public void NoWhileYoureUpBehaviorSlippedIn()
     {
