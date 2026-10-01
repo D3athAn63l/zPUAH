@@ -37,10 +37,14 @@ PickUpAndHaul-Optimized/
 │   │   ├── FishTranspiler.cs
 │   │   ├── IHoldMultipleThings_Support.cs
 │   │   ├── DebugLog.cs
+│   │   ├── PickUpAndHaulDesignationDefOf.cs
+│   │   ├── Planning/              ← hauling-job planning (docs/LOGISTICS_ARCHITECTURE.md)
+│   │   ├── DevTools/              ← Dev Mode only: Autotests → Make colony (zPUAH)
 │   │   └── PickUpAndHaul.csproj
 │   ├── IHoldMultipleThings/
 │   │   ├── IHoldMultipleThings.cs
 │   │   └── IHoldMultipleThings.csproj
+│   ├── PickUpAndHaul.Tests/       ← xUnit tests, no game needed
 │   └── PickUpAndHaul.sln
 ├── README.md
 └── PACKAGE_INFO.md
@@ -61,7 +65,7 @@ PickUpAndHaul-Optimized/
 
 ### Safe Optimizations Retained
 1. Per-map cache (`Dictionary<Map, HaulablesCacheEntry>`)
-2. try/finally cleanup for skipCells/skipThings
+2. Per-run `StorageSearchContext` instead of static skipCells/skipThings (replaced the earlier try/finally cleanup)
 3. `.Count == 0` instead of LINQ `.Any()` in hot paths
 4. Null safety guards in Harmony patches
 5. Cache cleanup method for stale maps

@@ -2,7 +2,11 @@ name: Build mod
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
+
+env:
+  MOD: public/PickUpAndHaul-Optimized
 
 jobs:
   build:
@@ -14,14 +18,32 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # Must build first: PickUpAndHaul.csproj references its output DLL
-      - name: Build IHoldMultipleThings
-        run: dotnet build "public/PickUpAndHaul-Optimized/Source/IHoldMultipleThings/IHoldMultipleThings.csproj" -c Release
+      - name: Restore
+        run: |
+          dotnet restore "${{ env.MOD }}/Source/IHoldMultipleThings/IHoldMultipleThings.csproj"
+          dotnet restore "${{ env.MOD }}/Source/PickUpAndHaul/PickUpAndHaul.csproj"
+          dotnet restore "${{ env.MOD }}/Source/PickUpAndHaul.Tests/PickUpAndHaul.Tests.csproj"
 
-      - name: Build PickUpAndHaul
-        run: dotnet build "public/PickUpAndHaul-Optimized/Source/PickUpAndHaul/PickUpAndHaul.csproj" -c Release
+      # DEBUG compiles extra diagnostics (Log.Message tracing in the planner); make sure that path still builds.
+      # Both configurations write to the same Assemblies folder, so the Release build below must come last.
+      - name: Compile check (Debug)
+        run: |
+          dotnet build "${{ env.MOD }}/Source/IHoldMultipleThings/IHoldMultipleThings.csproj" -c Debug --no-restore
+          dotnet build "${{ env.MOD }}/Source/PickUpAndHaul/PickUpAndHaul.csproj" -c Debug --no-restore
+
+      # Must build first: PickUpAndHaul.csproj references its output DLL
+      - name: Build IHoldMultipleThings (Release)
+        run: dotnet build "${{ env.MOD }}/Source/IHoldMultipleThings/IHoldMultipleThings.csproj" -c Release --no-restore
+
+      - name: Build PickUpAndHaul (Release)
+        run: dotnet build "${{ env.MOD }}/Source/PickUpAndHaul/PickUpAndHaul.csproj" -c Release --no-restore
+
+      # Pure planning logic + a verbatim copy of the pre-refactor algorithm run side by side; repository invariants.
+      # No game files needed.
+      - name: Test
+        run: dotnet test "${{ env.MOD }}/Source/PickUpAndHaul.Tests/PickUpAndHaul.Tests.csproj" -c Release --no-restore
 
       - uses: actions/upload-artifact@v4
         with:
           name: PickUpAndHaul-Optimized-Assemblies
-          path: public/PickUpAndHaul-Optimized/1.6/Assemblies/*.dll
+          path: ${{ env.MOD }}/1.6/Assemblies/*.dll

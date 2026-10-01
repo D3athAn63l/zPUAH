@@ -66,9 +66,12 @@ PickUpAndHaul-Optimized/
 │       └── IHoldMultipleThings.dll
 └── Source/
     ├── PickUpAndHaul/
-    │   └── *.cs
+    │   ├── *.cs
+    │   ├── Planning/          (hauling-job planning: see docs/LOGISTICS_ARCHITECTURE.md)
+    │   └── DevTools/          (Dev Mode only: Autotests → Make colony (zPUAH))
     ├── IHoldMultipleThings/
     │   └── *.cs
+    ├── PickUpAndHaul.Tests/   (xUnit; no game needed)
     └── PickUpAndHaul.sln
 ```
 
@@ -91,17 +94,17 @@ PickUpAndHaul-Optimized/
 | Destroyed Thing cleanup | Only removes null | Only removes null (restored) | Preserve stack merge tracking |
 | PawnUnloadChecker | Returns after queue | Returns after queue (restored) | Prevent false cleanup |
 | Cache | None | Per-map Dictionary | Multi-map correctness |
-| skipCells/skipThings | Manual cleanup | try/finally cleanup | Exception safety |
+| skipCells/skipThings | Static fields, manual cleanup | An explicit per-planning-run `StorageSearchContext` (Phase 0); nothing static, nothing to clean up | Exception safety, reentrancy |
 | LINQ in hot paths | `.Any()` | `.Count == 0` | Reduced allocations |
 | Null safety | Minimal | Added guards | Robustness |
 
 ## Optimizations Retained
 
 1. **Per-map cache** - `Dictionary<Map, HaulablesCacheEntry>` prevents cross-map invalidation
-2. **try/finally cleanup** - Ensures `skipCells`/`skipThings` are cleared even on exception
+2. **Per-run search context** - the temporary `skipCells`/`skipThings` are an explicit `StorageSearchContext` owned by one planning run (they used to be static fields reset in `try/finally`)
 3. **LINQ replacement** - `.Count == 0` instead of `.Any()` in `GetClosestAndRemove` and `FindClosestThing`
 4. **Null safety** - Added null checks in Harmony postfix patches
-5. **Cache cleanup** - `CleanCache()` drops entries for maps that are no longer loaded. It is called from `GetHaulablesCached()` behind a 2000-tick interval guard, so unloaded maps (quest maps, caravan maps, temporary maps) cannot be kept alive by the static cache.
+5. **Cache cleanup** - `CleanCache()` drops entries for maps that are no longer loaded. It is called from `HaulablesCache.Get()` (formerly `GetHaulablesCached()`) behind a 2000-tick interval guard, so unloaded maps (quest maps, caravan maps, temporary maps) cannot be kept alive by the static cache.
 
 ## Optimizations Removed/Redesigned
 
@@ -127,16 +130,18 @@ Before using in a real save, test:
 
 ## Verification status
 
-These are four different things and only the first has been done:
+These are different things; only the ones marked Done have been done:
 
 | | State |
 | --- | --- |
 | **Statically reviewed** — every file diffed against Mehni's 1.6 source; syntax parsed; XML, translation keys and DefOf names cross-checked | **Done** |
-| **Compiled** — Release build against the real RimWorld 1.6 reference assemblies | **Not verified** |
-| **Runtime tested** — the checklist below, run in game | **Not done** |
+| **Compiled** — Release build against the RimWorld 1.6 reference assemblies (Krafs.Rimworld.Ref) | **Done** — the *Build mod* GitHub Actions workflow builds both projects in Release and runs on every push/PR (it passed on `main`) |
+| **Unit-tested** — the pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`, run in the same workflow); this does not run RimWorld | **Done** |
+| **Runtime tested** — core Phase 0 hauling behavior and the refactored planning path, in game (RimWorld 1.6) | **Done** — isolated dev-colony stress run, multi-pawn / multi-stack hauling, storage changing during play, save/load during an active multi-pickup haul, and a zWYU coexistence smoke test; no relevant crashes or errors. Results: [`docs/PHASE0_RUNTIME_TESTS.md`](../../docs/PHASE0_RUNTIME_TESTS.md) |
+| **Specialized compatibility paths** — Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul, every storage-container mod, every forced/prioritized-haul permutation | **Not exhaustively tested** — these paths were not redesigned; they rest on structural preservation, the invariant and differential tests, and unchanged execution paths. Optional / non-blocking |
 | **Benchmarked** — measured allocation or frame-time numbers | **Not done** |
 
-Do not treat this fork as release-ready until at least the second and third rows are green.
+The core runtime-tested row is green, but it is not a universal-compatibility proof: test the specialized combinations you rely on before depending on them in a long-running save.
 
 ## Credits
 

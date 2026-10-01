@@ -1,4 +1,5 @@
 using System.Linq;
+using PickUpAndHaul.Planning;
 
 namespace PickUpAndHaul;
 public class JobDriver_HaulToInventory : JobDriver
@@ -80,7 +81,7 @@ public class JobDriver_HaulToInventory : JobDriver
                 haulables.AddRange(pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling());
                 var haulMoreWork = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(wg => wg.Worker is WorkGiver_HaulToInventory).Worker as WorkGiver_HaulToInventory;
                 Job haulMoreJob = null;
-                var haulMoreThing = WorkGiver_HaulToInventory.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
+                var haulMoreThing = HaulCandidates.GetClosestAndRemove(pawn.Position, pawn.Map, haulables, PathEndMode.ClosestTouch,
                    TraverseParms.For(pawn), 12, t => (haulMoreJob = haulMoreWork.JobOnThing(pawn, t)) != null);
 
                 if (haulMoreThing != null)
