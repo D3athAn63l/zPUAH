@@ -67,7 +67,8 @@ PickUpAndHaul-Optimized/
 └── Source/
     ├── PickUpAndHaul/
     │   ├── *.cs
-    │   └── Planning/          (hauling-job planning: see docs/LOGISTICS_ARCHITECTURE.md)
+    │   ├── Planning/          (hauling-job planning: see docs/LOGISTICS_ARCHITECTURE.md)
+    │   └── DevTools/          (Dev Mode only: Autotests → Make colony (zPUAH))
     ├── IHoldMultipleThings/
     │   └── *.cs
     ├── PickUpAndHaul.Tests/   (xUnit; no game needed)

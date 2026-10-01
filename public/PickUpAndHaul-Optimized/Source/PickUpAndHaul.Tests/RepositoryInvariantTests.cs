@@ -130,6 +130,59 @@ public class RepositoryInvariantTests
         Assert.Contains("public void ApplyTo(Job job)", Code(Src("Planning", "HaulPlan.cs")));
     }
 
+    /// <summary>
+    /// The Dev Mode test-colony generator (Autotests -> "Make colony (zPUAH)") is a developer tool only: present, registered through
+    /// RimWorld's DebugAction system, isolated under DevTools/, and independent of every piece of hauling code.
+    /// </summary>
+    [Fact]
+    public void TheDevColonyToolIsIsolatedAndTouchesNoHaulingCode()
+    {
+        var tool = Src("DevTools", "ColonyMaker.cs");
+        Assert.True(File.Exists(tool), "DevTools/ColonyMaker.cs is missing");
+        var code = Code(tool);
+
+        // registered in RimWorld's own dev-mode menu, only for a running map
+        Assert.Contains("[DebugAction(\"Autotests\", \"Make colony (zPUAH)\", allowedGameStates = AllowedGameStates.PlayingOnMap)]", code);
+        Assert.Contains("namespace PickUpAndHaul.DevTools;", code);
+
+        // it is the only debug action in the mod, and nothing outside DevTools mentions the tool
+        var devToolsDir = Src("DevTools") + Path.DirectorySeparatorChar;
+        foreach (var file in ModSources().Where(f => !f.StartsWith(devToolsDir, StringComparison.Ordinal)))
+        {
+            var other = Code(file);
+            Assert.DoesNotContain("DebugAction", other);
+            Assert.DoesNotContain("ColonyMaker", other);
+        }
+
+        // it never reaches into the hauling code, Harmony or the mod's settings / save-state classes
+        var forbidden = new[]
+        {
+            "HaulJobPlanner", "HaulPlan", "HaulPlanningRequest", "StorageSearchContext", "StorageResolver", "StorageAllocator",
+            "AllocationLedger", "PickupPolicy", "PickupSequencer", "CapacityMath", "HaulablesCache", "HaulCandidates", "StoreTarget",
+            "WorkGiver_HaulToInventory", "JobDriver_", "CompHauledToInventory", "PawnUnloadChecker", "HarmonyPatches", "HarmonyLib",
+            "Harmony", "PickUpAndHaulJobDefOf", "HaulToInventory", "UnloadYourHauledInventory", "Modbase", "ModCompatibilityCheck",
+            "PickUpAndHaul.Planning", "JobMaker",
+        };
+        foreach (var word in forbidden)
+        {
+            Assert.True(!code.Contains(word), $"DevTools/ColonyMaker.cs must not reference '{word}'");
+        }
+        Assert.DoesNotMatch(@"\bSettings\b", code); // the mod's Settings class (workSettings etc. are fine)
+
+        // the test colony has to exercise hauling: hauling stays enabled and first
+        Assert.Contains("workType == WorkTypeDefOf.Hauling ? 1 : 3", code);
+        Assert.DoesNotContain(".Disable(", code);
+
+        // if the tool ever changes global debug state it must restore it in a finally block
+        foreach (var global in new[] { "DebugSettings.godMode =", "Thing.allowDestroyNonDestroyable =" })
+        {
+            if (!code.Contains(global)) continue;
+            var finallyAt = code.IndexOf("finally", StringComparison.Ordinal);
+            Assert.True(finallyAt >= 0 && code.IndexOf(global, finallyAt, StringComparison.Ordinal) >= 0,
+                $"'{global}' is changed by the dev tool but not restored in a finally block");
+        }
+    }
+
     [Fact]
     public void NoWhileYoureUpBehaviorSlippedIn()
     {

@@ -29,3 +29,32 @@ Use at least one pawn with Hauling enabled and nothing else to do.
 | T0.17 | Compatibility smoke tests (if installed) | AllowTool (urgent haul, haul corpses if enabled), Combat Extended, Extended Storage, an `IHoldMultipleThings` mod. | Same behavior as on `main` for each. |
 
 Also watch the log for new `[PickUpAndHaul]` errors/warnings during all of the above and report any that do not appear on `main`.
+
+## Developer test colony (optional)
+
+For **T0.1, T0.2, T0.3, T0.4, T0.5, T0.7, T0.8, T0.13, T0.15 and T0.16**, Dev Mode → Debug actions → **Autotests → Make colony (zPUAH)**
+can create a disposable stress environment instead of setting it up by hand. (Turn Dev Mode on in the game options first; the action
+exists only there.)
+
+> **Destructive to the current map. Save first, and run it on a disposable dev-test map.** It clears a rectangle (up to 100 x 60 cells)
+> around the map centre — destroying everything destroyable in it, **including any pawns standing there**, and any zones in it — and
+> then builds the test world. Colonists, animals and buildings outside that rectangle are left alone.
+
+What it creates (all through RimWorld's ordinary systems; the tool plans, reserves and forces no hauling itself):
+
+| | |
+|---|---|
+| Colonists | 30 player-faction pawns on a 24-hour Work schedule, **Hauling enabled at priority 1**, every other work type they are capable of at priority 3 (work types a pawn is incapable of are not touched). The log line says how many of them can haul. |
+| Loose items | A field of several hundred loose items, one per cell: one full stack each of up to 120 random spawnable item kinds (coverage), plus 170 stacks of everyday resources and food (wood, steel, cloth, components, silver, chemfuel, leather, stone blocks, raw food, meals — whatever exists) in varied sizes: small, half, full and random. |
+| Storage | Six ordinary (default-filter, Normal priority) stockpiles: three bulk ones (A, B, D) in the middle band; **two small ones (C, E)** that fill quickly (overflow, partial capacity, further storage targets, T0.13); one **far** one (F) in the south for long trips. |
+| Worktables | Every `Building_WorkTable` def that fits and is safe to spawn, packed into the south-east, each with up to 8 available recipes as standing ("do forever") bills, so the benches keep consuming ingredients and producing items. |
+| Home area | The whole test rectangle. |
+
+Notes and limits:
+* The final log line reads `[zPUAH Dev] Test colony created: X pawns, Y items, Z worktables, N stockpiles.` followed by a details line; entries that
+  could not be built are counted and the first few are logged as warnings. An unexpected failure is logged as an error.
+* **Powered worktables stay idle until you give them power**; unpowered/fuel benches work. Bill-driven hauling therefore depends on what you power.
+* It does **not** arrange the cases that need deliberate setup — save/load mid-haul (T0.11), forced right-click hauling (T0.12), a specific
+  reservation conflict (T0.14), mod compatibility (T0.17) — test those by hand in the same colony.
+* To compare with `main`, run the generator on the same save with each build; the layout is deterministic, the item/pawn rolls are not.
+

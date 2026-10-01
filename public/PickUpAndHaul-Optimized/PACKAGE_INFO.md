@@ -39,6 +39,7 @@ PickUpAndHaul-Optimized/
 │   │   ├── DebugLog.cs
 │   │   ├── PickUpAndHaulDesignationDefOf.cs
 │   │   ├── Planning/              ← hauling-job planning (docs/LOGISTICS_ARCHITECTURE.md)
+│   │   ├── DevTools/              ← Dev Mode only: Autotests → Make colony (zPUAH)
 │   │   └── PickUpAndHaul.csproj
 │   ├── IHoldMultipleThings/
 │   │   ├── IHoldMultipleThings.cs
