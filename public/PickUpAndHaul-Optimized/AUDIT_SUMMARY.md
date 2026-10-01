@@ -4,7 +4,7 @@
 
 The optimized fork has been corrected to restore full behavioral compatibility with Mehni's RimWorld 1.6 Pick Up And Haul implementation. All critical bugs have been fixed, unsafe optimizations removed, and safe optimizations retained.
 
-**Status:** Code repair complete; a Release build succeeds in CI; runtime regression testing is still required before release.
+**Status:** Code repair complete; a Release build succeeds in CI; core Phase 0 hauling behavior was runtime validated in RimWorld 1.6 (see [`docs/PHASE0_RUNTIME_TESTS.md`](../../docs/PHASE0_RUNTIME_TESTS.md)). The full Phase 12 checklist and the specialized compatibility paths were not exhaustively run.
 
 **Verification levels — these are not interchangeable:**
 
@@ -13,7 +13,8 @@ The optimized fork has been corrected to restore full behavioral compatibility w
 | **Statically reviewed** — every source file diffed against Mehni's 1.6 tree, syntax parsed, XML / translation keys / DefOf names cross-checked | ✅ Done |
 | **Compiled** — clean Release build against the RimWorld 1.6 reference assemblies (Krafs.Rimworld.Ref) | ✅ Done — the *Build mod* GitHub Actions workflow (`windows-latest`) passed on `main` (run 35498277612) and runs on every push/PR |
 | **Unit-tested** — pure planning logic + repository invariants (`Source/PickUpAndHaul.Tests`, same workflow); no game involved | ✅ Done (added by the Phase 0 logistics refactor) |
-| **Runtime tested** — the Phase 12 checklist exercised in game | ❌ Not run |
+| **Runtime tested (core Phase 0 hauling)** — dev-colony stress run, multi-pawn / multi-stack hauling, storage changing during play, save/load during an active haul, zWYU coexistence smoke test; see `docs/PHASE0_RUNTIME_TESTS.md` | ✅ Done (RimWorld 1.6; no relevant crashes or errors) |
+| **Runtime tested (full Phase 12 checklist)** — two-map, map-removal, caravans, Combat Extended, Extended Storage, other specialized cases | ⚠️ Not exhaustively run (optional / non-blocking for Phase 0) |
 | **Benchmarked** — measured allocation or frame-time figures | ❌ Not run |
 
 > **Historical log.** The phases below describe the audit that preceded the Phase 0 logistics refactor, so the code locations they name
@@ -271,6 +272,10 @@ This was verified by diffing every source file in this fork against Mehni's 1.6 
 
 ### ⚠️ Not Completed (Requires Manual Testing)
 
+> **Update:** the core hauling behavior has since been runtime validated in RimWorld 1.6 as part of Phase 0 (results and per-test status:
+> [`docs/PHASE0_RUNTIME_TESTS.md`](../../docs/PHASE0_RUNTIME_TESTS.md)). The boxes below are the original audit checklist and are left unchecked
+> because this exact list was not run item by item.
+
 **Required Test Cases:**
 
 #### Basic Hauling
@@ -409,10 +414,10 @@ This was verified by diffing every source file in this fork against Mehni's 1.6 
 ✅ 4. Build instructions  
 ✅ 5. Publicizer/NuGet dependency information  
 ✅ 6. Compatibility notes  
-⚠️ 7. Regression-test results (requires manual testing)  
+⚠️ 7. Regression-test results — core Phase 0 hauling runtime validated (`docs/PHASE0_RUNTIME_TESTS.md`); the full Phase 12 list was not run item by item  
 ⚠️ 8. Benchmark results (requires measurement)  
 ✅ 9. Updated README  
-⚠️ 10. RimWorld 1.6 mod package structure complete and validated; compiles in CI (not yet runtime-tested)  
+✅ 10. RimWorld 1.6 mod package structure complete and validated; compiles in CI and runs in RimWorld 1.6 (Phase 0 runtime validation)  
 
 ---
 
@@ -426,11 +431,11 @@ All optimizations that could change hauling correctness have been removed. The r
 - LINQ replacement (allocation reduction, same behavior)
 - Null safety (robustness improvement)
 
-**Next Steps (in order — none of these have been done yet):**
+**Next Steps (status):**
 1. ~~Build the solution in **Release** and confirm it compiles cleanly.~~ Done: CI builds it (see the table at the top).
-2. Run the Phase 12 regression checklist in game, including the two-map and map-removal cases that exercise the haulables cache.
+2. ~~Run the regression checklist in game.~~ Partly done: core Phase 0 hauling behavior was runtime validated in RimWorld 1.6 (`docs/PHASE0_RUNTIME_TESTS.md`). Not exhaustively run, and optional / non-blocking for Phase 0: the two-map and map-removal cases that exercise the haulables cache, and the specialized compatibility paths (Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul).
 3. Benchmark only if you intend to make performance claims. No claim in this repository is currently backed by measurement, and none should be added without one.
-4. Release only once 1 and 2 have actually passed. The Phase 0 logistics refactor adds its own runtime checklist (`docs/PHASE0_RUNTIME_TESTS.md`), to be compared against `main`.
+4. The Phase 0 logistics refactor's own runtime checklist (`docs/PHASE0_RUNTIME_TESTS.md`) is complete for the core behavior; whether to release is the owner's call.
 
 ---
 

@@ -137,10 +137,11 @@ These are different things; only the ones marked Done have been done:
 | **Statically reviewed** — every file diffed against Mehni's 1.6 source; syntax parsed; XML, translation keys and DefOf names cross-checked | **Done** |
 | **Compiled** — Release build against the RimWorld 1.6 reference assemblies (Krafs.Rimworld.Ref) | **Done** — the *Build mod* GitHub Actions workflow builds both projects in Release and runs on every push/PR (it passed on `main`) |
 | **Unit-tested** — the pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`, run in the same workflow); this does not run RimWorld | **Done** |
-| **Runtime tested** — the checklist below, run in game | **Not done** |
+| **Runtime tested** — core Phase 0 hauling behavior and the refactored planning path, in game (RimWorld 1.6) | **Done** — isolated dev-colony stress run, multi-pawn / multi-stack hauling, storage changing during play, save/load during an active multi-pickup haul, and a zWYU coexistence smoke test; no relevant crashes or errors. Results: [`docs/PHASE0_RUNTIME_TESTS.md`](../../docs/PHASE0_RUNTIME_TESTS.md) |
+| **Specialized compatibility paths** — Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul, every storage-container mod, every forced/prioritized-haul permutation | **Not exhaustively tested** — these paths were not redesigned; they rest on structural preservation, the invariant and differential tests, and unchanged execution paths. Optional / non-blocking |
 | **Benchmarked** — measured allocation or frame-time numbers | **Not done** |
 
-Do not treat this fork as release-ready until the runtime-tested row is green.
+The core runtime-tested row is green, but it is not a universal-compatibility proof: test the specialized combinations you rely on before depending on them in a long-running save.
 
 ## Credits
 

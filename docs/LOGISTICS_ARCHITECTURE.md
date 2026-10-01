@@ -149,8 +149,9 @@ of the world, in order.
   chaining are unchanged.
 
 What these tests cannot cover is the RimWorld-bound glue (`StorageResolver`, `StorageAllocator`, `PickupPolicy`, `HaulJobPlanner`): that
-code was moved/transliterated with the original text diffed against it, and needs the in-game checklist in
-[`PHASE0_RUNTIME_TESTS.md`](PHASE0_RUNTIME_TESTS.md).
+code was moved/transliterated with the original text diffed against it, and is covered by the in-game checklist in
+[`PHASE0_RUNTIME_TESTS.md`](PHASE0_RUNTIME_TESTS.md); core Phase 0 hauling behavior has been runtime validated in RimWorld 1.6 (results in
+that file).
 
 ## 9. Compatibility note: legacy "While You're Up" PUAH+ integration
 

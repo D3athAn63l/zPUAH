@@ -70,7 +70,7 @@ Then enable "Pick Up And Haul (Optimized)" in the mods list, with Harmony loaded
 | Static review against upstream 1.6 | Done |
 | Compiles in Release | **Yes** — the *Build mod* workflow (GitHub Actions, `windows-latest`, Krafs.Rimworld.Ref reference assemblies) builds `IHoldMultipleThings` and `PickUpAndHaul` in Release; it passed on `main` and runs on every push/PR |
 | Automated tests | Pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`); run in the same workflow. They do **not** exercise RimWorld itself |
-| Runtime regression tested in game | **Not done** |
+| Runtime tested in game (RimWorld 1.6) | **Done for core Phase 0 hauling** — isolated dev-colony stress run (30 pawns / 290 loose stacks), multi-pawn and multi-stack hauling, storage filled / deleted during play, save/load during an active multi-pickup haul, and a zWYU coexistence smoke test; no relevant crashes or errors (results: [`docs/PHASE0_RUNTIME_TESTS.md`](docs/PHASE0_RUNTIME_TESTS.md)). Specialized compatibility paths (Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul, every forced/prioritized-haul permutation) were **not** exhaustively tested |
 | Benchmarked | **Not done** |
 
 See `public/PickUpAndHaul-Optimized/AUDIT_SUMMARY.md` for the detailed audit and the regression-test checklist, and [`docs/LOGISTICS_ARCHITECTURE.md`](docs/LOGISTICS_ARCHITECTURE.md) for how the hauling code is organized (Phase 0 logistics refactor; runtime checklist in [`docs/PHASE0_RUNTIME_TESTS.md`](docs/PHASE0_RUNTIME_TESTS.md)).
