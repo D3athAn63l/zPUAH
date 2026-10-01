@@ -16,9 +16,13 @@ This is a personal optimization fork that:
 - Adds null safety guards in Harmony patches
 - Replaces LINQ `.Any()` with `.Count == 0` in hot paths
 
+Normal hauling behavior is unchanged. The one addition is an **experimental, default-off** setting, *Native opportunistic hauling (Phase 1)*:
+while a pawn is already travelling to a job it may carry one worthwhile item along the way (one stack, one route-validated destination, unloaded there; no
+additional pickups; vanilla then resumes the original job). It stays inactive whenever a standalone While You're Up mod is loaded.
+
 This fork does NOT:
-- Change gameplay behavior
-- Add new features
+- Change normal hauling behavior
+- Enable any new feature by default
 
 A handful of `Log.Message` calls were dropped from `JobDriver_HaulToInventory` relative to upstream. This has no effect on a Release build either way: the logger is marked `[Conditional("DEBUG")]`, so those calls emit no IL outside a DEBUG build. No performance claim rests on it.
 
@@ -139,6 +143,7 @@ These are different things; only the ones marked Done have been done:
 | **Unit-tested** — the pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`, run in the same workflow); this does not run RimWorld | **Done** |
 | **Runtime tested** — core Phase 0 hauling behavior and the refactored planning path, in game (RimWorld 1.6) | **Done** — isolated dev-colony stress run, multi-pawn / multi-stack hauling, storage changing during play, save/load during an active multi-pickup haul, and a zWYU coexistence smoke test; no relevant crashes or errors. Results: [`docs/PHASE0_RUNTIME_TESTS.md`](../../docs/PHASE0_RUNTIME_TESTS.md) |
 | **Specialized compatibility paths** — Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul, every storage-container mod, every forced/prioritized-haul permutation | **Not exhaustively tested** — these paths were not redesigned; they rest on structural preservation, the invariant and differential tests, and unchanged execution paths. Optional / non-blocking |
+| **Phase 1 native opportunistic hauling** (experimental setting, off by default) — one item along the way, planned unload | Compiled, unit- and invariant-tested, Harmony hooks bound to the real 1.6 assembly; **not yet runtime tested** ([`docs/PHASE1_RUNTIME_TESTS.md`](../../docs/PHASE1_RUNTIME_TESTS.md)) |
 | **Benchmarked** — measured allocation or frame-time numbers | **Not done** |
 
 The core runtime-tested row is green, but it is not a universal-compatibility proof: test the specialized combinations you rely on before depending on them in a long-running save.

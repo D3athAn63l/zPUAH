@@ -36,6 +36,8 @@ Optimizations in this fork:
 • Null safety improvements
 • Proper build system with Krafs.Publicizer
 
+Experimental (off by default): a mod setting, "Native opportunistic hauling (Phase 1)", lets a pawn that is already travelling to a job carry one worthwhile item along the way. It stays inactive when a standalone While You're Up mod is loaded.
+
 Original mod by Mehni. Optimizations by D3athAn63l.
 
 Credits:
