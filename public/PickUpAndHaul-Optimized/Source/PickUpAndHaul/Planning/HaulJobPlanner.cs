@@ -23,6 +23,13 @@ internal static class HaulJobPlanner
     /// </returns>
     public static Job TryCreate(in HaulPlanningRequest request)
     {
+        // A native opportunity trip (Phase 1) has its destination preselected and never collects more: it is planned by its own
+        // small planner and shares none of the normal path below, which is unchanged.
+        if (request.Kind == HaulRequestKind.Opportunity)
+        {
+            return OpportunityHaulPlanner.TryCreate(request);
+        }
+
         var pawn = request.Pawn;
         var thing = request.InitialThing;
         var map = pawn.Map;

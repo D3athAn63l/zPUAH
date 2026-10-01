@@ -20,6 +20,10 @@ The goal of this fork is behavioural parity with Mehni's RimWorld 1.6 implementa
 
 Hauling logic, job defs, work giver priority, save keys and the merged-stack recovery path are deliberately unchanged from upstream.
 
+### Experimental: native opportunistic hauling (Phase 1, off by default)
+
+One new, **optional** setting — *Native opportunistic hauling (Phase 1)*, default **off** — lets a pawn that is already walking to a job carry **one** worthwhile item along the way (a single stack to one route-validated storage destination, unloaded there, after which vanilla resumes the original job). It does not replace While You're Up: no multi-item opportunities, no construction/bill supply, and it stays inactive on its own whenever a standalone While You're Up mod (zWYU, Jobs Of Opportunity, While You're Up, ...) is loaded. Normal Pick Up And Haul behavior is unchanged whether it is on or off. See [`docs/LOGISTICS_ARCHITECTURE.md`](docs/LOGISTICS_ARCHITECTURE.md) section 10 and [`docs/PHASE1_RUNTIME_TESTS.md`](docs/PHASE1_RUNTIME_TESTS.md).
+
 ### On performance claims
 
 This fork makes **no measured performance claims**. Earlier versions of this README quoted figures such as "~40% less GC pressure" and "~60% less log I/O"; those were never benchmarked and have been removed. Note in particular that the upstream debug logger is marked `[Conditional("DEBUG")]`, so those calls emit no IL at all in a Release build — removing them cannot affect release performance.
@@ -71,6 +75,7 @@ Then enable "Pick Up And Haul (Optimized)" in the mods list, with Harmony loaded
 | Compiles in Release | **Yes** — the *Build mod* workflow (GitHub Actions, `windows-latest`, Krafs.Rimworld.Ref reference assemblies) builds `IHoldMultipleThings` and `PickUpAndHaul` in Release; it passed on `main` and runs on every push/PR |
 | Automated tests | Pure planning logic and repository invariants (`Source/PickUpAndHaul.Tests`); run in the same workflow. They do **not** exercise RimWorld itself |
 | Runtime tested in game (RimWorld 1.6) | **Done for core Phase 0 hauling** — isolated dev-colony stress run (30 pawns / 290 loose stacks), multi-pawn and multi-stack hauling, storage filled / deleted during play, save/load during an active multi-pickup haul, and a zWYU coexistence smoke test; no relevant crashes or errors (results: [`docs/PHASE0_RUNTIME_TESTS.md`](docs/PHASE0_RUNTIME_TESTS.md)). Specialized compatibility paths (Combat Extended, Extended Storage, other `IHoldMultipleThings` mods, AllowTool urgent haul, every forced/prioritized-haul permutation) were **not** exhaustively tested |
+| Phase 1 native opportunistic hauling (experimental, off by default) | Compiled, unit- and invariant-tested, and its two Harmony hooks bind to the real 1.6 assembly; **not yet runtime tested** in RimWorld — [`docs/PHASE1_RUNTIME_TESTS.md`](docs/PHASE1_RUNTIME_TESTS.md) |
 | Benchmarked | **Not done** |
 
 See `public/PickUpAndHaul-Optimized/AUDIT_SUMMARY.md` for the detailed audit and the regression-test checklist, and [`docs/LOGISTICS_ARCHITECTURE.md`](docs/LOGISTICS_ARCHITECTURE.md) for how the hauling code is organized (Phase 0 logistics refactor; runtime checklist in [`docs/PHASE0_RUNTIME_TESTS.md`](docs/PHASE0_RUNTIME_TESTS.md)).

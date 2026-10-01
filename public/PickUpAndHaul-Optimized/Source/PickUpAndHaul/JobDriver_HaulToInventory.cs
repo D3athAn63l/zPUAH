@@ -1,4 +1,5 @@
 using System.Linq;
+using PickUpAndHaul.NativeOpportunity;
 using PickUpAndHaul.Planning;
 
 namespace PickUpAndHaul;
@@ -58,7 +59,9 @@ public class JobDriver_HaulToInventory : JobDriver
                     }
                 }
 
-                if (thing.Spawned)
+                // A native opportunity trip (Phase 1) never queues a vanilla haul for what is left of the stack: that would be a
+                // detour nobody validated. The remainder stays where it is for normal hauling later.
+                if (thing.Spawned && !OpportunityTripRegistry.IsOpportunityJob(job))
                 {
                     var haul = HaulAIUtility.HaulToStorageJob(actor, thing, actor.CurJob.playerForced);
                     if (haul?.TryMakePreToilReservations(actor, false) ?? false)
@@ -76,6 +79,14 @@ public class JobDriver_HaulToInventory : JobDriver
         {
             initAction = () =>
             {
+                // Phase 1: a native opportunity trip is exactly one pickup, so the "haul more within 12 cells" step is skipped for it.
+                // Normal trips run the step below exactly as before.
+                if (OpportunityTripRegistry.IsOpportunityJob(job))
+                {
+                    OpportunityLog.SkippedNormalChaining(pawn);
+                    return;
+                }
+
                 var haulables = TempListForThings;
                 haulables.Clear();
                 haulables.AddRange(pawn.Map.listerHaulables.ThingsPotentiallyNeedingHauling());
@@ -109,6 +120,8 @@ public class JobDriver_HaulToInventory : JobDriver
                 var unloadJob = JobMaker.MakeJob(PickUpAndHaulJobDefOf.UnloadYourHauledInventory, storeCell);
                 if (unloadJob.TryMakePreToilReservations(actor, false))
                 {
+                    // Phase 1: an opportunity trip hands its planned destination on to the unload job (no-op for normal trips).
+                    OpportunityTripRegistry.CopyToFollowUp(curJob, unloadJob);
                     actor.jobs.jobQueue.EnqueueFirst(unloadJob, JobTag.Misc);
                     EndJobWith(JobCondition.Succeeded);
                 }
@@ -138,6 +151,13 @@ public class JobDriver_HaulToInventory : JobDriver
 
             if (!(MassUtility.EncumbrancePercent(actor) <= 0.9f && !ceOverweight))
             {
+                // An opportunity trip does not turn into a vanilla haul: it just ends and vanilla resumes the original job.
+                if (OpportunityTripRegistry.IsOpportunityJob(curJob))
+                {
+                    EndJobWith(JobCondition.Incompletable);
+                    return;
+                }
+
                 var haul = HaulAIUtility.HaulToStorageJob(actor, nextThing, curJob.playerForced);
                 if (haul?.TryMakePreToilReservations(actor, false) ?? false)
                 {

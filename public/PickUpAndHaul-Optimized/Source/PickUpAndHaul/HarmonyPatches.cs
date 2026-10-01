@@ -77,6 +77,10 @@ static class HarmonyPatches
             transpiler: new(typeof(HarmonyPatches), 
                 nameof(JobGiver_Haul_TryGiveJob_Transpiler)));
 
+        // Phase 1: the two hooks of the (default-off) native opportunity feature. Kept in their own class so that this list stays
+        // exactly the Phase 0 patch set; see NativeOpportunity/OpportunityPatches.cs for what each one is for.
+        NativeOpportunity.OpportunityPatches.Install(harmony);
+
         Verse.Log.Message("PickUpAndHaul (Optimized) welcomes you to RimWorld.");
     }
 
